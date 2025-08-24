@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F&B 식음시설 설계 기준 계산기</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .input-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .input-field {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .input-field label {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
+        .input-field input {
+            padding: 12px 20px;
+            font-size: 18px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            width: 200px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .input-field input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .calculate-btn {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            font-weight: 600;
+        }
+
+        .calculate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(52, 152, 219, 0.3);
+        }
+
+        .results {
+            padding: 30px;
+        }
+
+        .category {
+            margin-bottom: 40px;
+            border: 1px solid #e9ecef;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        .category-header {
+            background: linear-gradient(135deg, #34495e, #2c3e50);
+            color: white;
+            padding: 20px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .category-content {
+            padding: 0;
+        }
+
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .result-table th {
+            background: #f8f9fa;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #2c3e50;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .result-table td {
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+            transition: background-color 0.2s ease;
+        }
+
+        .result-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .result-table .item-name {
+            font-weight: 600;
+            color: #2c3e50;
+            width: 40%;
+        }
+
+        .result-table .unit {
+            color: #7f8c8d;
+            font-style: italic;
+            width: 15%;
+        }
+
+        .result-table .value {
+            font-weight: 600;
+            color: #2980b9;
+            font-size: 16px;
+            width: 20%;
+        }
+
+        .result-table .note {
+            color: #7f8c8d;
+            font-size: 14px;
+            width: 25%;
+        }
+
+        .highlight {
+            background: linear-gradient(90deg, #f39c12, #e67e22) !important;
+            color: white !important;
+            font-weight: 700;
+        }
+
+        @media (max-width: 768px) {
+            .input-group {
+                flex-direction: column;
+            }
+            
+            .input-field input {
+                width: 100%;
+                max-width: 300px;
+            }
+            
+            .result-table {
+                font-size: 14px;
+            }
+            
+            .result-table th,
+            .result-table td {
+                padding: 10px 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🍽️ F&B 식음시설 설계 기준 계산기</h1>
+            <p>식수를 입력하면 모든 시설 기준이 자동으로 계산됩니다</p>
+        </div>
+
+        <div class="input-section">
+            <div class="input-group">
+                <div class="input-field">
+                    <label for="mealCount">식수 (명)</label>
+                    <input type="number" id="mealCount" placeholder="예: 500" min="100" max="2000" value="500">
+                </div>
+                <button class="calculate-btn" onclick="calculateAll()">📊 계산하기</button>
+            </div>
+        </div>
+
+        <div class="results" id="results">
+            <!-- 계산 결과가 여기에 표시됩니다 -->
+        </div>
+    </div>
+
+    <script>
+        // 기준 데이터
+        const baseData = {
+            mealCounts: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1200, 1500, 2000],
+            
+            // 면적 관련 (PY 단위)
+            kitchen: [12.1, 24.2, 36.3, 48.4, 60.5, 72.6, 84.7, 96.8, 108.9, 121, 145.2, 181.5, 242],
+            office: [1, 1, 1.3, 1.7, 2.1, 2.5, 3, 3.4, 3.8, 4.2, 5.1, 6.4, 8.5],
+            changingRoom: [1.1, 2.1, 3.2, 4.2, 5.3, 6.4, 7.4, 8.5, 9.5, 10.6, 12.7, 15.9, 21.2],
+            totalSpace: [44, 88, 132, 175, 219, 263, 307, 351, 394, 438, 526, 658, 877],
+            
+            // 주방 장비
+            ovens: ['6단', '10단', '20단', '40단', '40단*2', '40단*2', '40단*2', '40단*2', '40단*2', '40단*2', '40단*2', '40단*2', '40단*2'],
+            washers: ['1TD', '2TD', '3TD', '2TD*2', '3TD*2', '3TD*2', '3TD*2', '3TD*2', '3TD*2', '3TD*2', '3TD*2', '3TD*2', '3TD*2'],
+            walkInCooler: [0.6, 1.1, 1.7, 2.2, 2.8, 3.4, 3.9, 4.5, 5.1, 5.6, 6.7, 8.4, 11.2],
+            walkInFreezer: [0.4, 0.8, 1.2, 1.6, 2, 2.4, 2.7, 3.1, 3.5, 3.9, 4.7, 5.9, 7.9],
+            
+            // 냉장/냉동고 (대수)
+            refrigerators: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20],
+            freezers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20],
+            
+            // 조리기구
+            riceCookers: [1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 7, 8, 10],
+            stewPots: ['100L', '100L', '150L*2EA', '200L*2EA', '250L*2EA', '250L*4EA', '250L*4EA', '250L*6EA', '250L*6EA', '250L*8EA', '250L*10EA', '250L*10EA', '250L*10EA'],
+            
+            // 유틸리티
+            gas: ['G8~G10', 'G10~G16', 'G16~G25', 'G25~G40', 'G25~G40', 'G40~G65', 'G40~G65', 'G40~G65', 'G65~G100', 'G65~G100', 'G65~G100', 'G100~G160', 'G100~G160'],
+            ventilation: [2800, 5600, 8400, 11200, 14000, 16800, 19600, 22400, 25200, 28000, 33500, 41900, 55900],
+            electricity: [30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 360, 450, 600]
+        };
+
+        function interpolate(mealCount, dataArray) {
+            const mealCounts = baseData.mealCounts;
+            
+            // 정확한 값이 있는 경우
+            const exactIndex = mealCounts.indexOf(mealCount);
+            if (exactIndex !== -1) {
+                return dataArray[exactIndex];
+            }
+            
+            // 보간 계산
+            for (let i = 0; i < mealCounts.length - 1; i++) {
+                if (mealCount >= mealCounts[i] && mealCount <= mealCounts[i + 1]) {
+                    const ratio = (mealCount - mealCounts[i]) / (mealCounts[i + 1] - mealCounts[i]);
+                    
+                    if (typeof dataArray[i] === 'number') {
+                        return Math.round((dataArray[i] + ratio * (dataArray[i + 1] - dataArray[i])) * 10) / 10;
+                    } else {
+                        // 문자열의 경우 가까운 값 반환
+                        return ratio < 0.5 ? dataArray[i] : dataArray[i + 1];
+                    }
+                }
+            }
+            
+            // 범위를 벗어나는 경우
+            if (mealCount < mealCounts[0]) return dataArray[0];
+            return dataArray[dataArray.length - 1];
+        }
+
+        function calculateAll() {
+            const mealCount = parseInt(document.getElementById('mealCount').value);
+            
+            if (!mealCount || mealCount < 100 || mealCount > 2000) {
+                alert('식수는 100명 이상 2000명 이하로 입력해주세요.');
+                return;
+            }
+
+            const results = {
+                '공간 설계': [
+                    {name: '주방 면적', unit: 'PY', value: interpolate(mealCount, baseData.kitchen), note: '인당 0.4㎡ 기준'},
+                    {name: '사무실 면적', unit: 'PY', value: interpolate(mealCount, baseData.office), note: '전체면적의 1%'},
+                    {name: '갱의실 면적', unit: 'PY', value: interpolate(mealCount, baseData.changingRoom), note: '전체면적의 2.5%'},
+                    {name: '전체 면적', unit: 'PY', value: interpolate(mealCount, baseData.totalSpace), note: '홀:인당1.4㎡/주방:인당0.4㎡'},
+                ],
+                '주방 장비': [
+                    {name: '오븐', unit: '대', value: interpolate(mealCount, baseData.ovens), note: '단수별 분류'},
+                    {name: '세척기', unit: '대', value: interpolate(mealCount, baseData.washers), note: '퇴식시 리드타임 10초/인'},
+                    {name: '워크인 냉장고', unit: 'm²', value: interpolate(mealCount, baseData.walkInCooler), note: '5.5~6L/인 기준'},
+                    {name: '워크인 냉동고', unit: 'm²', value: interpolate(mealCount, baseData.walkInFreezer), note: '냉장:냉동 = 2:1'},
+                    {name: '냉장고(45BOX)', unit: '대', value: interpolate(mealCount, baseData.refrigerators), note: '4L/인, 보관일수 2일'},
+                    {name: '냉동고(25BOX)', unit: '대', value: interpolate(mealCount, baseData.freezers), note: '2L/인, 보관일수 2일'},
+                    {name: '취반기(150인용)', unit: '대', value: interpolate(mealCount, baseData.riceCookers), note: '200G/인 기준'},
+                    {name: '국솥/볶음솥', unit: '대', value: interpolate(mealCount, baseData.stewPots), note: '500G/인 기준'},
+                ],
+                '유틸리티': [
+                    {name: '주방 가스', unit: 'G', value: interpolate(mealCount, baseData.gas), note: '가스 용량'},
+                    {name: '주방 배기', unit: 'CMH', value: interpolate(mealCount, baseData.ventilation), note: '환기횟수 70회 기준'},
+                    {name: '전기 용량', unit: 'Kw', value: interpolate(mealCount, baseData.electricity), note: '10~30Kw/100식'},
+                ]
+            };
+
+            displayResults(results, mealCount);
+        }
+
+        function displayResults(results, mealCount) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+
+            for (const [category, items] of Object.entries(results)) {
+                const categoryDiv = document.createElement('div');
+                categoryDiv.className = 'category';
+                
+                categoryDiv.innerHTML = `
+                    <div class="category-header">
+                        ${category} (식수: ${mealCount}명)
+                    </div>
+                    <div class="category-content">
+                        <table class="result-table">
+                            <thead>
+                                <tr>
+                                    <th>항목</th>
+                                    <th>단위</th>
+                                    <th>계산값</th>
+                                    <th>비고</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${items.map(item => `
+                                    <tr>
+                                        <td class="item-name">${item.name}</td>
+                                        <td class="unit">${item.unit}</td>
+                                        <td class="value">${item.value}</td>
+                                        <td class="note">${item.note}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                resultsDiv.appendChild(categoryDiv);
+            }
+        }
+
+        // 페이지 로드 시 기본 계산 실행
+        window.onload = function() {
+            calculateAll();
+        };
+    </script>
+</body>
+</html>
