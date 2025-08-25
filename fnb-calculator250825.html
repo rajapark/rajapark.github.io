@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Planterra FNB 계산기 – v3.2 (Simple)</title>
+<style>
+:root{--pri:#1d4ed8;--pri2:#2563eb}
+*{box-sizing:border-box}body{margin:0;background:#f8fafc;font-family:ui-sans-serif,system-ui,"Noto Sans KR"}
+.wrap{max-width:1180px;margin:18px auto;padding:0 16px}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden}
+.hd{padding:12px 16px;background:linear-gradient(90deg,var(--pri2),var(--pri));color:#fff;font-weight:800}
+.bd{padding:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center;margin:6px 0}
+.lbl{font-size:12px;color:#374151;font-weight:700}
+.inp{width:100%;padding:8px 10px;border:2px solid #e5e7eb;border-radius:8px}
+.chipset{display:flex;gap:8px;flex-wrap:wrap}
+.chip{position:relative;display:inline-block}
+.chip input{position:absolute;opacity:0}
+.chip label{display:inline-block;padding:7px 12px;border:1px solid #cbd5e1;border-radius:999px;font-size:12px;background:#fff;cursor:pointer}
+.chip input:checked + label{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+
+.tile{background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px}
+.tile h4{margin:0 0 4px;font-size:12px;color:#334155}
+.bignum{font-size:18px;font-weight:900;line-height:1.15}
+
+.box{border-radius:12px;padding:12px}
+.g{background:#ECFDF5;border:1px solid #A7F3D0}
+.o{background:#FFF7ED;border:1px solid #FED7AA}
+.p{background:#F5F3FF;border:1px solid #DDD6FE}
+.s{background:#F8FAFC;border:1px solid #E2E8F0}
+.rowline{display:flex;justify-content:space-between;font-size:13px;margin-top:6px}
+.total{display:flex;justify-content:space-between;border-top:1px solid #e5e7eb;margin-top:8px;padding-top:8px;font-weight:800}
+
+.kpi{background:#0b1324;color:#fff;border-radius:14px;padding:14px}
+.kpi .v{font-size:24px;font-weight:900;margin-top:4px}
+.profit{background:#065f46!important}.loss{background:#7f1d1d!important}
+
+.note{font-size:12px;line-height:1.6;color:#374151}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card" style="padding:20px;text-align:center;margin-bottom:16px">
+    <div style="font-size:22px;font-weight:900">Planterra FNB 계산기 – v3.2</div>
+    <div style="font-size:12px;color:#475569">입력 연동 · 면적 구분 → 투자비 → 월 손익(BEP) — ER 1.2 m²/인 고정</div>
+  </div>
+
+  <div class="grid3">
+    <!-- 1. 업종/등급/입력방식 -->
+    <div class="card">
+      <div class="hd">🎯 업종 · 등급 · 입력방식</div>
+      <div class="bd">
+        <div class="lbl">업종</div>
+        <div class="chipset">
+          <div class="chip"><input class="watch" type="radio" name="biz" id="b-er" value="employee_restaurant" checked><label for="b-er">구내/단체급식</label></div>
+          <div class="chip"><input class="watch" type="radio" name="biz" id="b-rs" value="restaurant"><label for="b-rs">레스토랑</label></div>
+          <div class="chip"><input class="watch" type="radio" name="biz" id="b-cf" value="cafe"><label for="b-cf">카페</label></div>
+          <div class="chip"><input class="watch" type="radio" name="biz" id="b-fc" value="food_court"><label for="b-fc">푸드코트</label></div>
+        </div>
+
+        <div class="lbl" style="margin-top:12px">품질 등급(홀 인테리어)</div>
+        <div class="chipset">
+          <div class="chip"><input class="watch" type="radio" name="grade" id="g-mid" value="mid"><label for="g-mid">중</label></div>
+          <div class="chip"><input class="watch" type="radio" name="grade" id="g-high" value="high" checked><label for="g-high">상</label></div>
+          <div class="chip"><input class="watch" type="radio" name="grade" id="g-top" value="top"><label for="g-top">최상</label></div>
+        </div>
+
+        <div class="lbl" style="margin-top:12px">입력 방식</div>
+        <div class="chipset">
+          <div class="chip"><input class="watch" type="radio" name="mode" id="m-users" value="users" checked><label for="m-users">목표 이용객수</label></div>
+          <div class="chip"><input class="watch" type="radio" name="mode" id="m-seats" value="seats"><label for="m-seats">좌석수</label></div>
+          <div class="chip"><input class="watch" type="radio" name="mode" id="m-area" value="area"><label for="m-area">총 면적(평)</label></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. 수요/밀도 -->
+    <div class="card">
+      <div class="hd">🔷 수요 · 밀도</div>
+      <div class="bd">
+        <div class="row" id="rowUsers"><div class="lbl">일 이용객(명)</div><input id="targetUsers" class="inp watch" type="number" value="500" min="10" max="300000"></div>
+        <div class="row" id="rowSeats" style="display:none"><div class="lbl">좌석 수(석)</div><input id="directSeats" class="inp watch" type="number" value="120" min="10" max="30000"></div>
+        <div class="row" id="rowArea"  style="display:none"><div class="lbl">총 면적(평)</div><input id="areaPy" class="inp watch" type="number" value="60" min="10" max="5000"></div>
+
+        <div class="row"><div class="lbl">일 회전율(회/일)</div><input id="turnover" class="inp watch" type="number" value="2.5" step="0.1" min="0.3" max="12"></div>
+
+        <!-- ER: 1.2 m²/인 고정 -->
+        <div id="erBox" style="margin-top:8px">
+          <div class="lbl">1인당 식당 총면적 (m²/인) — 고정</div>
+          <input id="seatAreaER" class="inp" type="number" value="1.2" step="0.1" min="1.2" max="1.2" disabled>
+        </div>
+
+        <!-- 레스토랑/카페/푸드코트: 좌석밀도 -->
+        <div id="restBox" style="display:none;margin-top:8px">
+          <div class="lbl">홀 좌석밀도 (석/평)</div>
+          <div class="chipset" style="margin-bottom:6px">
+            <div class="chip"><input class="watch" type="radio" name="spp" id="spp10" value="1.0"><label for="spp10">1.0</label></div>
+            <div class="chip"><input class="watch" type="radio" name="spp" id="spp11" value="1.1" checked><label for="spp11">1.1</label></div>
+            <div class="chip"><input class="watch" type="radio" name="spp" id="spp12" value="1.2"><label for="spp12">1.2</label></div>
+          </div>
+          <input id="seatsPerPy" class="inp watch" type="number" value="1.1" step="0.1" min="0.5" max="4">
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 면적 구분 -->
+    <div class="card">
+      <div class="hd">📐 면적 구분</div>
+      <div class="bd grid4" id="areaSummary"></div>
+    </div>
+  </div>
+
+  <!-- 투자비 -->
+  <div class="card" style="margin-top:16px">
+    <div class="hd">💰 투자비 (자동 계산)</div>
+    <div class="bd" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+      <div class="box g" id="hallOut"></div>
+      <div class="box o" id="kitchenOut"></div>
+      <div class="box p" id="mepOut"></div>
+      <div class="box s" id="totalOut"></div>
+    </div>
+  </div>
+
+  <!-- 손익 -->
+  <div class="card" style="margin-top:16px">
+    <div class="hd">📊 월 손익 계산 (감가 포함 · BEP)</div>
+    <div class="bd">
+      <div class="grid3">
+        <div class="tile">
+          <h4>매출 입력</h4>
+          <div class="row"><div class="lbl">월 매출(₩)</div><input id="revMonthly" class="inp watch" type="number" value="100000000" step="1000000"></div>
+        </div>
+        <div class="tile">
+          <h4>변동비(% of 매출)</h4>
+          <div class="row"><div class="lbl">재료비(%)</div><input id="vFood" class="inp watch" type="number" value="33" step="0.5"></div>
+          <div class="row"><div class="lbl">변동 인건비(%)</div><input id="vLabor" class="inp watch" type="number" value="10" step="0.5"></div>
+          <div class="row"><div class="lbl">유틸리티(%)</div><input id="vUtil" class="inp watch" type="number" value="5" step="0.1"></div>
+          <div class="row"><div class="lbl">기타 변동(%)</div><input id="vEtc" class="inp watch" type="number" value="2" step="0.1"></div>
+        </div>
+        <div class="tile">
+          <h4>고정비(₩/월)</h4>
+          <div class="row"><div class="lbl">임대료</div><input id="fRent" class="inp watch" type="number" value="8000000" step="500000"></div>
+          <div class="row"><div class="lbl">고정 인건비</div><input id="fLabor" class="inp watch" type="number" value="15000000" step="500000"></div>
+          <div class="row"><div class="lbl">기타 고정</div><input id="fEtc" class="inp watch" type="number" value="3000000" step="500000"></div>
+          <div class="row"><div class="lbl">감가기간(년)</div><input id="paybackYears" class="inp watch" type="number" value="5" step="1" min="1" max="15"></div>
+        </div>
+      </div>
+
+      <div class="grid3" style="margin-top:12px">
+        <div class="kpi" id="kpiBEP"><div>손익분기 매출(BEP)</div><div class="v"></div><div style="font-size:12px;opacity:.85" id="kpiBEPsub"></div></div>
+        <div class="kpi" id="kpiProfit"><div>월 손익(감가 포함)</div><div class="v"></div><div style="font-size:12px;opacity:.85" id="kpiProfitSub"></div></div>
+        <div class="kpi" id="kpiCM"><div>기여이익률</div><div class="v"></div><div style="font-size:12px;opacity:.85" id="kpiCMsub"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin:16px 0">
+    <div class="hd">ℹ️ 비고</div>
+    <div class="bd note">
+      • <b>구조보강, 소방완비, 대수선 공사</b>는 <b>별도</b>입니다.<br/>
+      • 1차 입상(전기·급수·배수·가스 인입/증설) 또한 <b>별도</b>입니다.<br/>
+      • 본 계산기는 <b>참고용</b> 예시이며, 실제 설계·시공·인허가/법적 책임자료가 아닙니다. 최종 면적·단가·견적은
+        현장 조사와 설계도면, 시공사 산출내역으로 확정되어야 합니다.<br/>
+      • 인테리어 공사비는 <b>마감재 사양</b>에 따라 큰 편차가 있을 수 있습니다.
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const KRW = n => new Intl.NumberFormat("ko-KR",{style:"currency",currency:"KRW",maximumFractionDigits:0}).format(Number(n)||0);
+  const fmt = (n,d=1,u="") => `${Number(n||0).toLocaleString("ko-KR",{minimumFractionDigits:d,maximumFractionDigits:d})} ${u}`;
+  const fmtInt = (n,u="") => `${Math.round(n||0).toLocaleString("ko-KR")} ${u}`;
+  const $ = id => document.getElementById(id);
+  const val = id => parseFloat(($(id)?.value)||"0");
+
+  // 2025 실행가 근접 평단가
+  const COST = {
+    hallUnit:{mid:2000000,high:3250000,top:5500000},
+    hallVentPerPy:250000, hallHVACPerPy:400000, hallElectricalPerPy:150000, hallFacilityBasicPerPy:50000,
+    furniturePerSeat:{mid:130000,high:180000,top:260000},
+    kitchenInteriorPerPy:2500000, kitchenVentPerPy:600000, kitchenHVACPerPy:400000,
+    kitchenPlumbGasPerPy:600000, kitchenElectricalPerPy:225000, kitchenEquipPerPy:3000000,
+    kShare:{employee_restaurant:0.40, restaurant:0.30, cafe:0.30, food_court:0.50},
+    erSeatArea:1.2, erMinSeats:100, erMinKitchenPy:5
+  };
+  const DEFAULT_SPP = {restaurant:1.1, cafe:1.3, food_court:1.3};
+
+  function getRadio(name){
+    const r = document.querySelector(`input[name="${name}"]:checked`);
+    return r ? r.value : "";
+  }
+
+  function toggleUI(){
+    const mode = getRadio("mode");
+    $("rowUsers").style.display = (mode==="users") ? "" : "none";
+    $("rowSeats").style.display = (mode==="seats") ? "" : "none";
+    $("rowArea").style.display  = (mode==="area")  ? "" : "none";
+
+    const biz = getRadio("biz");
+    if(biz==="employee_restaurant"){
+      $("erBox").style.display=""; $("restBox").style.display="none";
+    }else{
+      $("erBox").style.display="none"; $("restBox").style.display="";
+      const def = DEFAULT_SPP[biz] || 1.1;
+      $("seatsPerPy").value = def;
+      document.getElementById("spp11").checked = (def===1.1);
+      document.getElementById("spp10").checked = (def===1.0);
+      document.getElementById("spp12").checked = (def===1.2);
+    }
+  }
+
+  function recalc(){
+    const biz   = getRadio("biz");
+    const grade = getRadio("grade");
+    const mode  = getRadio("mode");
+    const kShare = COST.kShare[biz];
+
+    const turnover = Math.max(0.3, val("turnover"));
+    const spp = (biz==="employee_restaurant") ? null : (parseFloat($("seatsPerPy").value)||DEFAULT_SPP[biz]||1.1);
+
+    let seats=0, hallPy=0, kitchenPy=0, totalPy=0;
+
+    if(mode==="users"){
+      seats = Math.max(10, Math.ceil(val("targetUsers")/turnover));
+      if(biz==="employee_restaurant"){
+        const totalM2 = seats * COST.erSeatArea; totalPy = totalM2/3.3058;
+        kitchenPy = totalPy * kShare; hallPy = totalPy - kitchenPy;
+        if(seats<=COST.erMinSeats && kitchenPy<COST.erMinKitchenPy){ kitchenPy=COST.erMinKitchenPy; hallPy=totalPy-kitchenPy; }
+      }else{
+        hallPy = Math.max(5, seats/Math.max(0.5,spp));
+        kitchenPy = hallPy * (kShare/(1-kShare)); totalPy = hallPy + kitchenPy;
+      }
+    }else if(mode==="seats"){
+      seats = Math.max(10, Math.round(val("directSeats")));
+      if(biz==="employee_restaurant"){
+        const totalM2 = seats * COST.erSeatArea; totalPy = totalM2/3.3058;
+        kitchenPy = totalPy * kShare; hallPy = totalPy - kitchenPy;
+        if(seats<=COST.erMinSeats && kitchenPy<COST.erMinKitchenPy){ kitchenPy=COST.erMinKitchenPy; hallPy=totalPy-kitchenPy; }
+      }else{
+        hallPy = Math.max(5, seats/Math.max(0.5,spp));
+        kitchenPy = hallPy * (kShare/(1-kShare)); totalPy = hallPy + kitchenPy;
+      }
+    }else{ // area
+      totalPy = Math.max(10, val("areaPy"));
+      kitchenPy = totalPy * kShare; hallPy = totalPy - kitchenPy;
+      if(biz==="employee_restaurant"){
+        const seatsER = Math.floor((totalPy*3.3058)/COST.erSeatArea);
+        seats = Math.max(10, seatsER);
+        if(seats<=COST.erMinSeats && kitchenPy<COST.erMinKitchenPy){ kitchenPy=COST.erMinKitchenPy; hallPy=totalPy-kitchenPy; }
+      }else{
+        seats = Math.max(10, Math.floor(hallPy*Math.max(0.5,spp)));
+      }
+    }
+
+    const totalM2 = totalPy*3.3058;
+    const estUsers = seats * turnover;
+
+    // ===== 투자비 =====
+    const hallUnit = COST.hallUnit[grade];
+    const furnUnit = COST.furniturePerSeat[grade];
+    const sppForFurn = (biz==="employee_restaurant") ? ((hallPy>0)? (seats/Math.max(1,hallPy)) : 1.5) : spp;
+
+    const hallInterior = hallPy*hallUnit;
+    const hallFurniture= hallPy*Math.max(0.5,sppForFurn)*furnUnit;
+    const hallVent     = hallPy*COST.hallVentPerPy;
+    const hallHVAC     = hallPy*COST.hallHVACPerPy;
+    const hallElec     = hallPy*COST.hallElectricalPerPy;
+    const hallFac      = hallPy*COST.hallFacilityBasicPerPy;
+    const hallSubtotal = hallInterior+hallFurniture+hallVent+hallHVAC+hallElec+hallFac;
+
+    const kInterior    = kitchenPy*COST.kitchenInteriorPerPy;
+    const kVent        = kitchenPy*COST.kitchenVentPerPy;
+    const kHVAC        = kitchenPy*COST.kitchenHVACPerPy;
+    const kPlumbGas    = kitchenPy*COST.kitchenPlumbGasPerPy;
+    const kElec        = kitchenPy*COST.kitchenElectricalPerPy;
+    const kEquip       = kitchenPy*COST.kitchenEquipPerPy;
+    const kitchenSubtotal = kInterior+kVent+kHVAC+kPlumbGas+kElec+kEquip;
+
+    const hardSubtotal = hallSubtotal+kitchenSubtotal;
+    const designPct=4.0, supervisionPct=2.5, pmPct=5.0, contingencyPct=10.0;
+    const design       = hardSubtotal*(designPct/100);
+    const supervision  = hardSubtotal*(supervisionPct/100);
+    const pm           = hardSubtotal*(pmPct/100);
+    const subtotal     = hardSubtotal+design+supervision+pm;
+    const contingency  = subtotal*(contingencyPct/100);
+    const grandTotal   = subtotal+contingency;
+    const perPy        = grandTotal/Math.max(1,totalPy);
+
+    // ===== 면적 구분 출력 =====
+    $("areaSummary").innerHTML = `
+      <div class="tile"><h4>총 면적</h4><div class="bignum">${fmt(totalPy,1,"평 /")} ${fmt(totalM2,1,"m²")}</div></div>
+      <div class="tile"><h4>홀 면적</h4><div class="bignum">${fmt(hallPy,1,"평")}</div></div>
+      <div class="tile"><h4>홀 좌석수</h4><div class="bignum">${fmtInt(seats,"석")}</div></div>
+      <div class="tile"><h4>주방 면적</h4><div class="bignum">${fmt(kitchenPy,1,"평")}</div></div>
+      <div class="tile"><h4>예상 일 이용객</h4><div class="bignum">${fmtInt(estUsers,"명/일")}</div></div>
+    `;
+
+    const row=(n,v)=>`<div class="rowline"><span>${n}</span><span style="font-weight:700">${KRW(v)}</span></div>`;
+    const total=(n,v,c)=>`<div class="total" style="color:${c}"><span>${n}</span><span>${KRW(v)}</span></div>`;
+
+    $("hallOut").innerHTML = `
+      <b>🏢 홀</b>
+      ${row("인테리어",hallInterior)}
+      ${row("가구(의탁자)",hallFurniture)}
+      ${row("급배기",hallVent)}
+      ${row("냉난방(4way)",hallHVAC)}
+      ${row("전기·조명·통신",hallElec)}
+      ${row("기본 설비(2차)",hallFac)}
+      ${total("홀 소계",hallSubtotal,"#065F46")}
+    `;
+    $("kitchenOut").innerHTML = `
+      <b>👨‍🍳 주방</b>
+      ${row("건축(방수 포함)",kInterior)}
+      ${row("급배기(SUS)",kVent)}
+      ${row("냉난방(4way)",kHVAC)}
+      ${row("설비(급수·급탕·위생·가스)",kPlumbGas)}
+      ${row("전기·동력·장비배선",kElec)}
+      ${row("장비",kEquip)}
+      ${total("주방 소계",kitchenSubtotal,"#9A3412")}
+    `;
+    $("mepOut").innerHTML = `
+      <b>🧯 공통/별도</b>
+      <div class="rowline"><span>소방 공사</span><span style="font-weight:700">별도</span></div>
+      <div class="rowline"><span>1차 입상(전기·급수·배수·가스)</span><span style="font-weight:700">별도</span></div>
+      ${total("공사비 소계",hardSubtotal,"#3730A3")}
+    `;
+    $("totalOut").innerHTML = `
+      <b>📦 총 투자비</b>
+      ${row("설계비(국가 공시)",design)}
+      ${row("감리비",supervision)}
+      ${row("PM",pm)}
+      ${row("예비비",contingency)}
+      <div class="total"><span>총투자비(ALL-IN)</span><span style="color:#1D4ED8;font-weight:900">${KRW(grandTotal)}</span></div>
+      <div class="rowline" style="margin-top:6px"><span>평당 투자비</span><span style="font-weight:800">${KRW(perPy)} / 평</span></div>
+    `;
+
+    // ===== 손익 =====
+    const R = Math.max(0, val("revMonthly"));
+    const varRate = (val("vFood")+val("vLabor")+val("vUtil")+val("vEtc"))/100;
+    const varCost = R*varRate;
+    const fixed   = Math.max(0,val("fRent"))+Math.max(0,val("fLabor"))+Math.max(0,val("fEtc"));
+    const dep     = grandTotal/Math.max(1, val("paybackYears")*12);
+    const cmRate  = 1 - varRate;
+    const BEP     = cmRate>0 ? (fixed+dep)/cmRate : Infinity;
+    const profit  = R - varCost - fixed - dep;
+
+    const kpiProfit = $("kpiProfit"); kpiProfit.classList.remove("profit","loss"); kpiProfit.classList.add(profit>=0?"profit":"loss");
+    $("kpiBEP").querySelector(".v").textContent = KRW(BEP);
+    $("kpiBEPsub").textContent = `고정비 ${KRW(fixed)} + 감가 ${KRW(dep)} / 기여이익률 ${(cmRate*100).toFixed(1)}%`;
+    $("kpiProfit").querySelector(".v").textContent = KRW(profit);
+    $("kpiProfitSub").textContent = `매출 ${KRW(R)} – 변동비 ${KRW(varCost)} – 고정비 ${KRW(fixed)} – 감가 ${KRW(dep)}`;
+    $("kpiCM").querySelector(".v").textContent = `${(cmRate*100).toFixed(1)} %`;
+    $("kpiCMsub").textContent = `변동비율 ${(varRate*100).toFixed(1)}%`;
+  }
+
+  function bindAll(){
+    document.querySelectorAll(".watch").forEach(el=>{
+      el.addEventListener("input", ()=>{ toggleUI(); recalc(); });
+      el.addEventListener("change",()=>{ toggleUI(); recalc(); });
+    });
+  }
+  function init(){ bindAll(); toggleUI(); recalc(); }
+  document.addEventListener("DOMContentLoaded", init);
+})();
+</script>
+</body>
+</html>
