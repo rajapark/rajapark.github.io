@@ -1,0 +1,1746 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>AI 차트 분석기 Ultimate Pro v25 (Integrated)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+    <style>
+        :root {
+            --primary-color: #2196F3;
+            --primary-dark-color: #1976D2;
+            --background-color: #f0f2f5;
+            --card-background: #ffffff;
+            --shadow-light: rgba(0,0,0,0.05);
+            --shadow-medium: rgba(0,0,0,0.1);
+            --success-color: #4CAF50;
+            --warning-color: #ff9800;
+            --danger-color: #f44336;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: var(--background-color);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: var(--card-background);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px var(--shadow-medium);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark-color));
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+        }
+        .header h1 {
+            font-size: 2.8rem; font-weight: 700; margin-bottom: 8px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .header p { font-size: 1.1rem; opacity: 0.9; }
+
+        /* Label-for 방식 업로드 존 */
+        .upload-zone {
+            border: 4px dashed var(--primary-color);
+            padding: 60px;
+            text-align: center;
+            border-radius: 20px;
+            cursor: pointer;
+            background: linear-gradient(45deg, #f8faff, #e3f2fd);
+            transition: all 0.3s ease;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .upload-zone:hover {
+            border-color: var(--primary-dark-color);
+            background: linear-gradient(45deg, #e3f2fd, #bbdefb);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px var(--shadow-light);
+        }
+        .upload-zone.dragover {
+            border-color: #4CAF50;
+            background: linear-gradient(45deg, #e8f5e8, #c8e6c9);
+        }
+        .upload-icon { font-size: 3rem; color: var(--primary-color); margin-bottom: 15px; }
+        .upload-zone h3 { font-size: 1.5rem; font-weight: 500; margin-bottom: 5px; color: #333; }
+        .upload-zone p { color: #666; }
+        /* 시각적 숨김 (display:none 금지) */
+        .sr-only {
+            position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden;
+        }
+
+        .controls {
+            display: none; flex-direction: column; gap: 20px;
+            background: linear-gradient(135deg, #fff, #f5f7fa);
+            padding: 25px; border-radius: 15px; box-shadow: 0 5px 15px var(--shadow-light);
+        }
+        .control-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px;
+        }
+        .control-group { display: flex; flex-direction: column; gap: 8px; }
+        .control-group label { font-weight: 600; color: #555; font-size: 0.9rem; }
+        .control-group input[type="number"], .control-group select {
+            width: 100%; padding: 10px; border: 1px solid #e1e5e9; border-radius: 8px; font-size: 0.95rem;
+            transition: border-color 0.3s; background-color: #fefefe;
+        }
+        .control-group input:focus, .control-group select:focus { border-color: var(--primary-color); outline: none; }
+
+        .button-group { display: flex; gap: 15px; justify-content: flex-end; margin-top: 10px; }
+        .apply-btn, .reset-btn {
+            border: none; padding: 15px 30px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 1rem;
+            transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        .apply-btn { background: linear-gradient(135deg, #4CAF50, #45a049); color: white; }
+        .apply-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4); }
+        .apply-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+        .reset-btn { background: linear-gradient(135deg, #ff6b6b, #e55050); color: white; }
+        .reset-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4); }
+        .loading-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+
+        .analysis-container { display: none; flex-direction: column; gap: 20px; }
+        .chart-container, .analysis-panel {
+            background: var(--card-background); border-radius: 15px; padding: 20px; box-shadow: 0 10px 25px var(--shadow-medium);
+        }
+        .chart-tabs { display: none; gap: 10px; margin-bottom: 20px; }
+        .chart-tabs button {
+            padding: 10px 20px; border: none; border-radius: 25px; background: #e9ecef; cursor: pointer;
+            font-weight: 600; transition: all 0.3s; color: #666;
+        }
+        .chart-tabs button.active {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark-color)); color: white; transform: scale(1.05);
+        }
+        #mainChart { height: 500px; }
+
+        .analysis-panel h2 { font-size: 1.2rem; margin-bottom: 15px; border-left: 4px solid var(--primary-color); padding-left: 10px; }
+        .score-card {
+            background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 30px; border-radius: 15px; text-align: center;
+            margin-bottom: 20px; box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+        .score-value { font-size: 4rem; font-weight: 800; margin-bottom: 5px; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
+        .score-label { font-size: 1.5rem; font-weight: 600; opacity: 0.95; letter-spacing: -0.5px; }
+        .score-mode { font-size: 1rem; opacity: 0.8; margin-top: 5px; }
+        .score-confidence { font-size: 0.9rem; opacity: 0.8; margin-top: 8px; }
+        .score-card.strong-buy { background: linear-gradient(135deg, #4CAF50, #45a049); }
+        .score-card.buy { background: linear-gradient(135deg, #8bc34a, #7cb342); }
+        .score-card.neutral { background: linear-gradient(135deg, #667eea, #764ba2); }
+        .score-card.sell { background: linear-gradient(135deg, #ff8c4c, #f57c00); }
+        .score-card.strong-sell { background: linear-gradient(135deg, #ff4c4c, #c62828); }
+
+        .commentary { padding: 20px; border-radius: 10px; background: #fff3e0; border-left: 4px solid #ff9800; margin-bottom: 20px; }
+        .commentary h3 { color: #f57c00; margin-bottom: 10px; font-size: 1.1rem; }
+        .commentary p { line-height: 1.6; color: #333; }
+
+        .risk-metrics { background: linear-gradient(135deg, #fff3e0, #ffe0b3); padding: 20px; border-radius: 10px; border-left: 4px solid var(--warning-color); margin-bottom: 20px; }
+        .risk-metrics h3 { color: #e65100; margin-bottom: 15px; font-size: 1.1rem; }
+        .risk-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .risk-item { background: rgba(255,255,255,0.7); padding: 12px; border-radius: 8px; text-align: center; }
+        .risk-value { font-size: 1.2rem; font-weight: 700; margin-bottom: 3px; }
+        .risk-label { font-size: 0.85rem; color: #666; }
+        .risk-value.high { color: var(--danger-color); }
+        .risk-value.medium { color: var(--warning-color); }
+        .risk-value.low { color: var(--success-color); }
+
+        .support-resistance { background: linear-gradient(135deg, #f0f8ff, #e6f2ff); padding: 15px; border-radius: 10px; border-left: 4px solid #007bff; margin-bottom: 20px; }
+        .support-resistance h4 { color: #0056b3; margin-bottom: 8px; font-size: 1rem; }
+        .support-resistance p { margin-bottom: 5px; line-height: 1.4; }
+
+        .indicators-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .indicator-card { background: #f8f9fa; padding: 15px; border-radius: 10px; border-left: 4px solid var(--primary-color); box-shadow: 0 2px 5px var(--shadow-light); }
+        .indicator-title { font-weight: 600; color: #333; margin-bottom: 5px; font-size: 0.95rem; }
+        .indicator-value { font-size: 1.1rem; font-weight: 700; color: var(--primary-color); }
+        .indicator-desc { font-size: 0.8rem; color: #666; margin-top: 5px; }
+
+        .backtest-results, .pattern-alerts { padding: 20px; border-radius: 10px; margin-top: 15px; }
+        .backtest-results { background: #e8f5e8; border-left: 4px solid #4CAF50; }
+        .backtest-results h3 { color: #2e7d32; }
+        .backtest-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 15px 0; }
+        .backtest-item { text-align: center; padding: 10px; background: rgba(255,255,255,0.5); border-radius: 8px; }
+        .backtest-item strong { display: block; font-size: 1.1rem; margin-bottom: 3px; }
+        .backtest-item span { font-size: 0.85rem; color: #666; }
+        .pattern-alerts { background: #fce4ec; border-left: 4px solid #e91e63; }
+        .pattern-alerts h4 { color: #c2185b; }
+
+        .loading { display: none; text-align: center; padding: 40px; color: #666; flex-direction: column; align-items: center; justify-content: center; }
+        .loading.show { display: flex; }
+        .loading .spinner {
+            border: 5px solid #f3f3f3; border-top: 5px solid var(--primary-color); border-radius: 50%;
+            width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+
+        @media (max-width: 1200px) { .analysis-container { flex-direction: column; } }
+        @media (max-width: 768px) {
+            .container { padding: 10px; }
+            .header h1 { font-size: 2rem; }
+            .header p { font-size: 1rem; }
+            .upload-zone { padding: 40px 20px; }
+            .upload-icon { font-size: 2.5rem; }
+            .upload-zone h3 { font-size: 1.2rem; }
+            .control-grid { grid-template-columns: 1fr; }
+            .analysis-panel { padding: 15px; }
+            .score-value { font-size: 3rem; }
+            .score-label { font-size: 1.2rem; }
+            .indicators-grid { grid-template-columns: 1fr; }
+            .risk-grid { grid-template-columns: 1fr; }
+            .backtest-details { grid-template-columns: 1fr; }
+        }
+
+        /* === Elliott Wave Panel === */
+        .elliott-wave {
+            background: linear-gradient(135deg,#eef7ff,#ffffff);
+            padding:16px; border-radius:12px; border-left:4px solid #1565c0; margin-top:16px;
+        }
+        .elliott-wave h3 { color:#1565c0; margin-bottom:8px; font-size:1.05rem; }
+        .ew-grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+        .ew-card { background:#f8f9fb; border-radius:10px; padding:12px; box-shadow:0 1px 3px rgba(0,0,0,.05); }
+        .ew-kv { font-size:.9rem; line-height:1.4; }
+        .ew-good { color:#2e7d32; font-weight:700; }
+        .ew-warn { color:#ef6c00; font-weight:700; }
+        .ew-bad { color:#c62828; font-weight:700; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AI 차트 분석기 v25</h1>
+            <p>동적 가중치 • 개선된 백테스팅 • 리스크 관리</p>
+        </div>
+
+        <label id="uploadZone" class="upload-zone" for="fileInput">
+            <i class="fas fa-file-upload upload-icon"></i>
+            <h3>CSV 파일을 드래그하거나 클릭하여 업로드하세요</h3>
+            <p>키움증권에서 다운로드한 일자별 데이터를 지원합니다.</p>
+        </label>
+        <input type="file" id="fileInput" accept=".csv,text/csv,text/plain" class="sr-only"/>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <h3>데이터 분석 중...</h3>
+            <p>지표 계산 및 AI 분석을 수행하고 있습니다.</p>
+        </div>
+
+        <div id="controls" class="controls">
+            <div class="control-grid">
+                <div class="control-group">
+                    <label>RSI 기간</label>
+                    <input type="number" id="rsiPeriod" min="5" max="30" value="14" readonly>
+                </div>
+                <div class="control-group">
+                    <label>MACD Fast</label>
+                    <input type="number" id="macdFast" min="5" max="20" value="12" readonly>
+                </div>
+                <div class="control-group">
+                    <label>MACD Slow</label>
+                    <input type="number" id="macdSlow" min="20" max="35" value="26" readonly>
+                </div>
+                <div class="control-group">
+                    <label>볼린저 기간</label>
+                    <input type="number" id="bbPeriod" min="10" max="30" value="20" readonly>
+                </div>
+                <div class="control-group">
+                    <label>분석 관점</label>
+                    <select id="analysisMode">
+                        <option value="very-short">초단기 (5일)</option>
+                        <option value="short">단기 (20일)</option>
+                        <option value="mid">중기 (60일)</option>
+                        <option value="long">장기 (112일)</option>
+                        <option value="very-long" selected>초장기 (224일)</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>리스크 허용도</label>
+                    <select id="riskTolerance">
+                        <option value="conservative">보수적 (1%)</option>
+                        <option value="moderate" selected>보통 (2%)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="button-group">
+                <button class="reset-btn" id="resetBtn"><i class="fas fa-undo"></i> 리셋</button>
+                <button class="apply-btn" id="applyBtn"><i class="fas fa-sync"></i> 분석 적용</button>
+            </div>
+        </div>
+
+        <div id="analysisContainer" class="analysis-container">
+            <div class="analysis-panel">
+                <div id="scoreCard" class="score-card">
+                    <div class="score-value">--</div>
+                    <div class="score-label">분석 대기</div>
+                    <div class="score-mode">데이터를 업로드해주세요</div>
+                    <div class="score-confidence"></div>
+                </div>
+
+                <div class="commentary" id="commentary">
+                    <h3>AI 분석 코멘터리</h3>
+                    <p>데이터 업로드 후 상세한 분석 결과를 확인할 수 있습니다.</p>
+                </div>
+
+                <div class="risk-metrics" id="riskMetrics">
+                    <h3>리스크 분석</h3>
+                    <div class="risk-grid">
+                        <div class="risk-item">
+                            <div class="risk-value" id="volatilityValue">--</div>
+                            <div class="risk-label">변동성</div>
+                        </div>
+                        <div class="risk-item">
+                            <div class="risk-value" id="maxDrawdownValue">--</div>
+                            <div class="risk-label">최대 손실</div>
+                        </div>
+                        <div class="risk-item">
+                            <div class="risk-value" id="sharpeValue">--</div>
+                            <div class="risk-label">샤프 비율</div>
+                        </div>
+                        <div class="risk-item">
+                            <div class="risk-value" id="positionSizeValue">--</div>
+                            <div class="risk-label">권장 비중</div>
+                        </div>
+                    </div>
+                </div>
+
+                <h2>기술적 지표 분석</h2>
+                <div class="indicators-grid" id="indicatorsGrid"></div>
+
+                <h2>보조 분석</h2>
+                <div class="support-resistance" id="supportResistance">
+                    <h4>지지 & 저항 가격</h4>
+                    <p><strong>1차 지지선:</strong> --</p>
+                    <p><strong>2차 지지선:</strong> --</p>
+                    <p><strong>1차 저항선:</strong> --</p>
+                    <p><strong>2차 저항선:</strong> --</p>
+                </div>
+
+                <div class="backtest-results" id="backtestResults">
+                    <h3>개선된 백테스팅 결과</h3>
+                    <div class="backtest-details">
+                        <div class="backtest-item"><strong id="totalReturnValue">--</strong><span>총 수익률</span></div>
+                        <div class="backtest-item"><strong id="winRateValue">--</strong><span>승률</span></div>
+                        <div class="backtest-item"><strong id="avgHoldingValue">--</strong><span>평균 보유일</span></div>
+                        <div class="backtest-item"><strong id="tradeCountValue">--</strong><span>총 거래수</span></div>
+                    </div>
+                    <p class="small-text">※ 과거 수익률이 미래 수익을 보장하지 않습니다.</p>
+                </div>
+
+                <div class="pattern-alerts" id="patternAlerts">
+                    <h4>패턴 감지</h4>
+                    <p>차트 패턴 분석 결과가 표시됩니다.</p>
+                </div>
+
+                <div class="elliott-wave" id="elliottPanel">
+                    <h3>엘리엇 파동 분석</h3>
+                    <div class="ew-grid">
+                        <div class="ew-card">
+                            <div id="elliottSummary" class="ew-kv">스캔 대기…</div>
+                        </div>
+                        <div class="ew-card">
+                            <div id="elliottRules" class="ew-kv"></div>
+                        </div>
+                        <div class="ew-card">
+                            <div id="elliottFib" class="ew-kv"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div id="chartTabs" class="chart-tabs">
+                    <button id="tab-daily" class="active">일봉</button>
+                    <button id="tab-weekly">주봉</button>
+                    <button id="tab-monthly">월봉</button>
+                </div>
+                <div id="mainChart"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.min.js"></script>
+    <script>
+        const $ = id => document.getElementById(id);
+        let originalData = [], currentTF = 'daily', chart;
+        let candleSeries; // 차트 캔들 시리즈 전역 핸들 (마커 찍기용)
+        let lastElliott = null; // 마지막 엘리엇 결과 캐싱
+
+        /* ---------- 업로드 초기화 (label + DnD) ---------- */
+        function setupFileUpload() {
+            const uploadZone = $('uploadZone');
+            const fileInput = $('fileInput');
+
+            // 드래그&드롭
+            ['dragenter', 'dragover'].forEach(evt =>
+                uploadZone.addEventListener(evt, e => { e.preventDefault(); uploadZone.classList.add('dragover'); })
+            );
+            ['dragleave', 'dragend', 'drop'].forEach(evt =>
+                uploadZone.addEventListener(evt, e => { uploadZone.classList.remove('dragover'); })
+            );
+            uploadZone.addEventListener('drop', e => {
+                e.preventDefault();
+                const files = [...e.dataTransfer.files];
+                const file = files.find(f => f.type === 'text/csv' || f.name.toLowerCase().endsWith('.csv') || f.type === 'text/plain');
+                if (file) processFile(file);
+                else alert('CSV 파일만 업로드 가능합니다.');
+            });
+
+            // label 클릭 → 입력창 열림 (브라우저 기본 동작)
+            fileInput.addEventListener('change', e => {
+                if (e.target.files && e.target.files.length) processFile(e.target.files[0]);
+            });
+        }
+
+        /* ---------- 파일 처리(인코딩 자동감지) ---------- */
+        function processFile(file) {
+            $('uploadZone').style.display = 'none';
+            $('loading').classList.add('show');
+
+            readCSVMultiEncoding(file, text => {
+                try {
+                    originalData = parseKiwoomCSV(text);
+                    if (originalData.length === 0) throw new Error('파싱된 데이터가 없습니다. 파일 형식이 올바른지 확인해주세요.');
+                    $('loading').classList.remove('show');
+                    $('controls').style.display = 'flex';
+                    $('analysisContainer').style.display = 'flex';
+                    $('chartTabs').style.display = 'flex';
+                    analyzeData();
+                } catch (error) {
+                    alert('파일 처리 오류: ' + error.message);
+                    $('loading').classList.remove('show');
+                    $('uploadZone').style.display = 'flex';
+                    console.error('파싱 오류:', error);
+                }
+            });
+        }
+
+        // ArrayBuffer + TextDecoder 로 인코딩 탐지
+        function readCSVMultiEncoding(file, callback) {
+            const encodings = ['utf-8', 'euc-kr', 'ms949', 'iso-8859-1'];
+            const reader = new FileReader();
+            reader.onload = () => {
+                const buffer = reader.result;
+                for (let enc of encodings) {
+                    try {
+                        const td = new TextDecoder(enc, { fatal: false });
+                        const text = td.decode(buffer);
+                        if (text.includes('일자') || text.includes('시가') || text.includes('종가')) {
+                            return callback(text);
+                        }
+                    } catch (e) { /* 계속 시도 */ }
+                }
+                // 마지막 폴백: utf-8
+                const text = new TextDecoder('utf-8').decode(buffer);
+                callback(text);
+            };
+            reader.onerror = () => {
+                console.error('파일 읽기 오류');
+                callback('');
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        /* ---------- CSV 파서 ---------- */
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '', inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                const c = line[i];
+                if (c === '"') inQuotes = !inQuotes;
+                else if (c === ',' && !inQuotes) { result.push(current.trim()); current = ''; }
+                else if (c !== '\r') current += c;
+            }
+            result.push(current.trim());
+            return result;
+        }
+        function parseNumber(str) {
+            if (!str || str === '' || str === '+') return 0;
+            let cleaned = str.replace(/["']/g, '').replace(/,/g, '').replace(/[가-힣\s]/g, '');
+            const num = parseFloat(cleaned);
+            return isNaN(num) ? 0 : num;
+        }
+        function parseDate(dateStr) {
+            if (!dateStr) return '';
+            const cleaned = dateStr.replace(/[/"'\s]/g, '');
+            if (cleaned.length === 8) return `${cleaned.substr(0, 4)}-${cleaned.substr(4, 2)}-${cleaned.substr(6, 2)}`;
+            if (cleaned.includes('/')) return cleaned.replace(/\//g, '-');
+            return cleaned;
+        }
+        function parseKiwoomCSV(text) {
+            const lines = text.trim().split(/\n/);
+            if (lines.length < 2) return [];
+            let headerLineIndex = lines.findIndex(line => line.includes('일자') && line.includes('시가') && line.includes('종가'));
+            if (headerLineIndex === -1) return [];
+            const headers = parseCSVLine(lines[headerLineIndex]);
+            const idx = h => headers.indexOf(h);
+            const headerMap = {
+                '일자': idx('일자'), '시가': idx('시가'), '고가': idx('고가'), '저가': idx('저가'), '종가': idx('종가'),
+                '거래량': idx('거래량'), '거래대금': idx('거래대금'), '신용비': idx('신용비'), '개인': idx('개인'),
+                '기관': idx('기관'), '외국인': idx('외국인'), '외인비': idx('외인비')
+            };
+            const maxIdx = Math.max(...Object.values(headerMap).filter(v => v !== -1));
+            const result = [];
+            for (let i = headerLineIndex + 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                const cols = parseCSVLine(line);
+                if (cols.length <= maxIdx) continue;
+                const d = {
+                    time: parseDate(cols[headerMap['일자']]),
+                    open: parseNumber(cols[headerMap['시가']]),
+                    high: parseNumber(cols[headerMap['고가']]),
+                    low: parseNumber(cols[headerMap['저가']]),
+                    close: parseNumber(cols[headerMap['종가']]),
+                    volume: parseNumber(cols[headerMap['거래량']] || '0'),
+                    amount: parseNumber(cols[headerMap['거래대금']] || '0'),
+                    credit: parseNumber(cols[headerMap['신용비']] || '0'),
+                    individual: parseNumber(cols[headerMap['개인']] || '0'),
+                    institution: parseNumber(cols[headerMap['기관']] || '0'),
+                    foreign: parseNumber(cols[headerMap['외국인']] || '0'),
+                    foreignRatio: parseNumber(cols[headerMap['외인비']] || '0')
+                };
+                if (d.time && d.close > 0) result.push(d);
+            }
+            result.sort((a, b) => new Date(a.time) - new Date(b.time));
+            return result;
+        }
+
+        /* ---------- 지표 계산 유틸 ---------- */
+        function calculateSMA(data, period) {
+            const result = [];
+            if (data.length < period) return [];
+            for (let i = period - 1; i < data.length; i++) {
+                const sum = data.slice(i - period + 1, i + 1).reduce((s, d) => s + d.close, 0);
+                result.push({ time: data[i].time, value: sum / period });
+            }
+            return result;
+        }
+        function calculateEMAArray(array, period) {
+            if (array.length < period) return [];
+            const result = new Array(array.length).fill(null);
+            const k = 2 / (period + 1);
+            let ema = array.slice(0, period).reduce((s, v) => s + v, 0) / period;
+            result[period - 1] = ema;
+            for (let i = period; i < array.length; i++) {
+                ema = array[i] * k + ema * (1 - k);
+                result[i] = ema;
+            }
+            return result;
+        }
+        function calculateRSI(data, period = 14) {
+            if (data.length < period + 1) return [];
+            const closes = data.map(d => d.close);
+            let gains = 0, losses = 0;
+            for (let i = 1; i <= period; i++) {
+                const diff = closes[i] - closes[i - 1];
+                if (diff > 0) gains += diff; else losses -= diff;
+            }
+            let avgGain = gains / period, avgLoss = losses / period;
+            const result = [];
+            for (let i = period; i < closes.length; i++) {
+                const diff = closes[i] - closes[i - 1];
+                avgGain = (avgGain * (period - 1) + (diff > 0 ? diff : 0)) / period;
+                avgLoss = (avgLoss * (period - 1) + (diff < 0 ? -diff : 0)) / period;
+                const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+                const rsi = 100 - (100 / (1 + rs));
+                result.push({ time: data[i].time, value: rsi });
+            }
+            return result;
+        }
+        function calculateMACD(data, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
+            if (data.length < slowPeriod) return { macd: [], signal: [], histogram: [] };
+            const closes = data.map(d => d.close);
+            const fast = calculateEMAArray(closes, fastPeriod);
+            const slow = calculateEMAArray(closes, slowPeriod);
+            const macdLine = fast.map((f, i) => (slow[i] != null ? f - slow[i] : null));
+            const filtered = macdLine.filter(v => v != null);
+            const signalLine = calculateEMAArray(filtered, signalPeriod);
+
+            const toSeries = (arr, startIndex) =>
+                data.slice(startIndex).map((d, i) => (arr[i] != null ? { time: d.time, value: arr[i] } : null)).filter(Boolean);
+
+            const macdSeries = toSeries(macdLine, slowPeriod - 1);
+            const signalSeries = toSeries(signalLine, slowPeriod - 1 + signalPeriod - 1);
+            const histogram = macdSeries.map((m, i) => (signalSeries[i] ? { time: m.time, value: m.value - signalSeries[i].value } : null)).filter(Boolean);
+
+            return { macd: macdSeries, signal: signalSeries, histogram };
+        }
+        function calculateBollingerBands(data, period = 20, stdDev = 2) {
+            const result = { upper: [], middle: [], lower: [] };
+            if (data.length < period) return result;
+            for (let i = period - 1; i < data.length; i++) {
+                const slice = data.slice(i - period + 1, i + 1);
+                const closes = slice.map(d => d.close);
+                const sma = closes.reduce((s, c) => s + c, 0) / period;
+                const variance = closes.reduce((s, c) => s + Math.pow(c - sma, 2), 0) / period;
+                const std = Math.sqrt(variance);
+                const time = data[i].time;
+                result.middle.push({ time, value: sma });
+                result.upper.push({ time, value: sma + std * stdDev });
+                result.lower.push({ time, value: sma - std * stdDev });
+            }
+            return result;
+        }
+        function calculateADX(data, period = 14) {
+            if (data.length <= period) return [];
+            const tr = [], plusDM = [], minusDM = [];
+            for (let i = 1; i < data.length; i++) {
+                const { high, low, close } = data[i];
+                const { high: ph, low: pl, close: pc } = data[i - 1];
+                tr.push(Math.max(high - low, Math.abs(high - pc), Math.abs(low - pc)));
+                const up = high - ph, down = pl - low;
+                plusDM.push(up > down && up > 0 ? up : 0);
+                minusDM.push(down > up && down > 0 ? down : 0);
+            }
+            let sTR = tr.slice(0, period).reduce((s, v) => s + v, 0);
+            let sP = plusDM.slice(0, period).reduce((s, v) => s + v, 0);
+            let sM = minusDM.slice(0, period).reduce((s, v) => s + v, 0);
+            const out = [];
+            for (let i = period; i < tr.length; i++) {
+                sTR = sTR - (sTR / period) + tr[i];
+                sP = sP - (sP / period) + plusDM[i];
+                sM = sM - (sM / period) + minusDM[i];
+                const plusDI = sTR > 0 ? (sP / sTR) * 100 : 0;
+                const minusDI = sTR > 0 ? (sM / sTR) * 100 : 0;
+                const dx = (plusDI + minusDI) > 0 ? Math.abs(plusDI - minusDI) / (plusDI + minusDI) * 100 : 0;
+                out.push({ time: data[i + 1]?.time || data[i].time, value: dx });
+            }
+            return out;
+        }
+        function calculateOBV(data) {
+            if (data.length < 2) return [];
+            const obv = []; let v = 0;
+            for (let i = 1; i < data.length; i++) {
+                if (data[i].close > data[i - 1].close) v += data[i].volume;
+                else if (data[i].close < data[i - 1].close) v -= data[i].volume;
+                obv.push({ time: data[i].time, value: v });
+            }
+            return obv;
+        }
+        function calculateLinearRegressionSlope(series, period = 5) {
+            if (series.length < period) return 0;
+            const recent = series.slice(-period);
+            const n = recent.length;
+            const sumX = n * (n - 1) / 2;
+            const sumY = recent.reduce((s, d) => s + d.value, 0);
+            const sumXY = recent.reduce((s, d, i) => s + i * d.value, 0);
+            const sumXX = n * (n - 1) * (2 * n - 1) / 6;
+            const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+            return slope || 0;
+        }
+
+        /* ========= ATR / ZigZag / 엘리엇 탐지 ========= */
+        // ATR(14)
+        function calculateATR(data, period = 14) {
+            if (data.length < period + 1) return [];
+            const trs = [];
+            for (let i = 1; i < data.length; i++) {
+                const h = data[i].high, l = data[i].low, pc = data[i - 1].close;
+                trs.push(Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc)));
+            }
+            // Wilder
+            let atr = trs.slice(0, period).reduce((s, v) => s + v, 0) / period;
+            const out = [{ time: data[period].time, value: atr }];
+            for (let i = period; i < trs.length; i++) {
+                atr = (atr * (period - 1) + trs[i]) / period;
+                out.push({ time: data[i + 1].time, value: atr });
+            }
+            return out;
+        }
+        // ATR + % 혼합 임계로 ZigZag 스윙 탐지
+        function computeZigZag(data, atrPeriod = 14, atrMult = 1.5, pct = 0.03, minBars = 5) {
+            if (data.length < atrPeriod + 5) return [];
+            const atrArr = calculateATR(data, atrPeriod);
+            const atrAt = (i) => {
+                const t = data[i].time;
+                for (let k = atrArr.length - 1; k >= 0; k--) {
+                    if (new Date(atrArr[k].time) <= new Date(t)) return atrArr[k].value;
+                }
+                return atrArr[0].value;
+            };
+
+            const pivots = [];
+            let lastPivotIdx = 0;
+            let lastPivotPrice = data[0].close;
+            let dir = 0; // 1 up, -1 down, 0 unknown
+            for (let i = 1; i < data.length; i++) {
+                const price = data[i].close;
+                const thr = Math.max(atrMult * atrAt(i), lastPivotPrice * pct);
+                if (dir >= 0 && price >= lastPivotPrice + thr && (i - lastPivotIdx) >= minBars) {
+                    if (dir === 0) {
+                        pivots.push({ idx: lastPivotIdx, time: data[lastPivotIdx].time, price: lastPivotPrice, type: 'L' });
+                    } else {
+                        pivots.push({ idx: lastPivotIdx, time: data[lastPivotIdx].time, price: lastPivotPrice, type: 'L' });
+                    }
+                    dir = 1; lastPivotIdx = i; lastPivotPrice = price;
+                } else if (dir <= 0 && price <= lastPivotPrice - thr && (i - lastPivotIdx) >= minBars) {
+                    if (dir === 0) {
+                        pivots.push({ idx: lastPivotIdx, time: data[lastPivotIdx].time, price: lastPivotPrice, type: 'H' });
+                    } else {
+                        pivots.push({ idx: lastPivotIdx, time: data[lastPivotIdx].time, price: lastPivotPrice, type: 'H' });
+                    }
+                    dir = -1; lastPivotIdx = i; lastPivotPrice = price;
+                } else {
+                    if (dir >= 0 && price > lastPivotPrice) { lastPivotIdx = i; lastPivotPrice = price; }
+                    if (dir <= 0 && price < lastPivotPrice) { lastPivotIdx = i; lastPivotPrice = price; }
+                }
+            }
+            pivots.push({ idx: lastPivotIdx, time: data[lastPivotIdx].time, price: lastPivotPrice, type: (dir >= 0 ? 'H' : 'L') });
+
+            const uniq = [];
+            const used = new Set();
+            for (const p of pivots.sort((a, b) => a.idx - b.idx)) {
+                const key = p.idx + ':' + p.type;
+                if (!used.has(key)) { uniq.push(p); used.add(key); }
+            }
+            const clean = [];
+            for (const p of uniq) {
+                if (!clean.length) { clean.push(p); continue; }
+                if (clean[clean.length - 1].type === p.type) {
+                    const last = clean[clean.length - 1];
+                    if (p.type === 'H' ? p.price >= last.price : p.price <= last.price) clean[clean.length - 1] = p;
+                } else {
+                    clean.push(p);
+                }
+            }
+            return clean;
+        }
+        const len = (a, b) => Math.abs(b.price - a.price);
+        const near = (v, target, tol = 0.08) => Math.abs(v - target) <= tol;
+        // RULE + Fib + 지표 합의형으로 점수
+        function detectElliottWaves(data) {
+            const piv = computeZigZag(data, 14, 1.5, 0.03, 5);
+            if (piv.length < 7) return { ok: false, message: '피벗 부족', markers: [], scoreAdjust: 0 };
+
+            const window = piv.slice(-9);
+
+            const tryBull = (arr) => {
+                for (let i = 0; i <= arr.length - 6; i++) {
+                    const s = arr.slice(i, i + 6);
+                    if (!(s[0].type === 'L' && s[1].type === 'H' && s[2].type === 'L' && s[3].type === 'H' && s[4].type === 'L' && s[5].type === 'H')) continue;
+
+                    const [L0, H1, L2, H3, L4, H5] = s;
+                    if (!(H1.price > L0.price && L2.price > L0.price && H3.price > H1.price && L4.price > L2.price && H5.price > H3.price)) continue;
+
+                    // 핵심 규칙
+                    const rule2 = L2.price > L0.price; // 2파 저점 미이탈
+                    const w1 = len(L0, H1), w3 = len(L2, H3), w5 = len(L4, H5);
+                    const rule3 = !(w3 < Math.min(w1, w5)); // 3파 최단 불가
+                    const rule4 = L4.price > H1.price * (1 - 0.003); // 4파-1파 영역 겹침 금지(허용오차)
+
+                    // Fib 체크
+                    const r2 = (H1.price - L2.price) / (H1.price - L0.price);
+                    const r4 = (H3.price - L4.price) / (H3.price - L2.price);
+                    const fib2 = (near(r2, 0.382) || near(r2, 0.618));
+                    const fib4 = (near(r4, 0.236) || near(r4, 0.382));
+                    const proj3 = w3 / w1;
+                    const fib3 = (proj3 >= 1.4 && proj3 <= 2.0); // ~1.618x
+
+                    // 지표 합의형
+                    const adx = calculateADX(data, 14);
+                    const macd = calculateMACD(data, 12, 26, 9);
+                    const rsi = calculateRSI(data, 14);
+
+                    const inRange = (t, from, to) => new Date(t) >= new Date(from) && new Date(t) <= new Date(to);
+                    const adxSeg = adx.filter(x => inRange(x.time, data[L2.idx].time, data[H3.idx].time));
+                    const adxAvg = adxSeg.reduce((s, x) => s + x.value, 0) / Math.max(1, adxSeg.length);
+                    const adxGood = adxAvg > 18;
+
+                    const macdSeg = macd.histogram.filter(x => inRange(x.time, data[L2.idx].time, data[H3.idx].time));
+                    const histAvg3 = macdSeg.reduce((s, x) => s + x.value, 0) / Math.max(1, macdSeg.length);
+                    const macdGood = (histAvg3 || 0) > 0;
+
+                    const findRSI = (barIdx) => {
+                        const t = data[barIdx].time;
+                        let nearest = rsi[rsi.length - 1]?.value || 50;
+                        for (let k = rsi.length - 1; k >= 0; k--) { if (new Date(rsi[k].time) <= new Date(t)) { nearest = rsi[k].value; break; } }
+                        return nearest;
+                    };
+                    const rsiH3 = findRSI(H3.idx), rsiH5 = findRSI(H5.idx);
+                    const bearishDiv = (H5.price > H3.price) && (rsiH5 < rsiH3 - 2);
+
+                    // 점수화
+                    let score = 0;
+                    const rulesOK = (rule2 && rule3 && rule4);
+                    if (rulesOK) score += 5;
+                    if (fib2) score += 2;
+                    if (fib4) score += 2;
+                    if (fib3) score += 2;
+                    if (adxGood) score += 2;
+                    if (macdGood) score += 2;
+                    if (bearishDiv) score -= 3; // 5파 피로 경고
+                    score = Math.max(-5, Math.min(8, score));
+
+                    // ABC 조정 후보
+                    let abc = null;
+                    const rest = arr.slice(i + 6);
+                    if (rest.length >= 3 && rest[0].type === 'L' && rest[1].type === 'H' && rest[2].type === 'L') {
+                        const A = rest[0], B = rest[1], C = rest[2];
+                        const ACeq = len(H5, A);
+                        const cOK = near(len(B, C) / ACeq, 1, 0.2) || near(len(B, C) / ACeq, 1.618, 0.25);
+                        const ABret = (B.price - A.price) / (H5.price - A.price);
+                        const bOK = ABret >= 0.3 && ABret <= 0.7;
+                        if (bOK || cOK) { abc = { A, B, C, bOK, cOK }; score -= 2; }
+                    }
+
+                    // 마커
+                    const markers = [
+                        { time: L0.time, position: 'belowBar', color: '#1976D2', shape: 'arrowUp', text: '1' },
+                        { time: H1.time, position: 'aboveBar', color: '#D32F2F', shape: 'arrowDown', text: '2' },
+                        { time: L2.time, position: 'belowBar', color: '#1976D2', shape: 'arrowUp', text: '3' },
+                        { time: H3.time, position: 'aboveBar', color: '#D32F2F', shape: 'arrowDown', text: '4' },
+                        { time: L4.time, position: 'belowBar', color: '#1976D2', shape: 'arrowUp', text: '5' },
+                        { time: H5.time, position: 'aboveBar', color: '#9C27B0', shape: 'circle', text: '(5)' },
+                    ];
+                    if (abc) {
+                        markers.push(
+                            { time: abc.A.time, position: 'aboveBar', color: '#455A64', shape: 'arrowDown', text: 'A' },
+                            { time: abc.B.time, position: 'belowBar', color: '#455A64', shape: 'arrowUp', text: 'B' },
+                            { time: abc.C.time, position: 'aboveBar', color: '#455A64', shape: 'arrowDown', text: 'C' },
+                        );
+                    }
+
+                    const fibTxt = [
+                        `2파 되돌림: ${(r2 * 100).toFixed(1)}% ${(fib2 ? '✅' : '❌')} (38.2/61.8)`,
+                        `4파 되돌림: ${(r4 * 100).toFixed(1)}% ${(fib4 ? '✅' : '❌')} (23.6/38.2)`,
+                        `3파 확장: ${(proj3).toFixed(2)}x ${(fib3 ? '✅' : '❌')} (~1.618x)`
+                    ].join('<br>');
+
+                    const rulesTxt = [
+                        `규칙2(2파 저점 미이탈): ${rule2 ? '<span class="ew-good">충족</span>' : '<span class="ew-bad">위반</span>'}`,
+                        `규칙3(3파 최단 금지): ${rule3 ? '<span class="ew-good">충족</span>' : '<span class="ew-bad">위반</span>'}`,
+                        `규칙4(4파-1파 영역 겹침 금지): ${rule4 ? '<span class="ew-good">충족</span>' : '<span class="ew-warn">경고</span>'}`
+                    ].join('<br>');
+
+                    return {
+                        ok: true, trend: 'bull',
+                        waves: { L0, H1, L2, H3, L4, H5 },
+                        rules: { rule2, rule3, rule4 },
+                        fib: { r2, r4, proj3 },
+                        scoreAdjust: score, // +8~-5
+                        markers,
+                        summary: `상승 충격파(1–5) 후보 인식.`,
+                        rulesTxt, fibTxt
+                    };
+                }
+                return null;
+            };
+
+            const bull = tryBull(window);
+            if (bull) return bull;
+
+            return { ok: false, message: '명확한 (상승) 충격파 패턴 미검출', markers: [], scoreAdjust: 0 };
+        }
+        /* ========= UI 업데이트 / 마커 처리 ========= */
+        function updateElliottPanel(result) {
+            if (!result || !result.ok) {
+                document.getElementById('elliottSummary').innerHTML = result?.message || '명확한 파동 미검출';
+                document.getElementById('elliottRules').innerHTML = '-';
+                document.getElementById('elliottFib').innerHTML = '-';
+                return;
+            }
+            document.getElementById('elliottSummary').innerHTML =
+                `${result.summary}<br>점수 보정: <b>${result.scoreAdjust > 0 ? '+' : ''}${result.scoreAdjust}</b>`;
+            document.getElementById('elliottRules').innerHTML = result.rulesTxt;
+            document.getElementById('elliottFib').innerHTML = result.fibTxt;
+        }
+        function renderElliottMarkers(result) {
+            if (!candleSeries) return;
+            if (!result || !result.markers || !result.markers.length) { candleSeries.setMarkers([]); return; }
+            candleSeries.setMarkers(result.markers);
+        }
+        /* ---------- 매집/패턴/보조 로직 (원문 유지 + 일부 보강) ---------- */
+        function calculateVolumeProfile(data, period = 120) {
+            if (data.length < period) return { maxVolumePrice: 0, valueArea: { upper: 0, lower: 0 } };
+            const recent = data.slice(-period);
+            const map = new Map();
+            recent.forEach(d => {
+                const binWidth = Math.max(1, d.close * 0.005);
+                const bin = Math.floor(d.close / binWidth) * binWidth;
+                map.set(bin, (map.get(bin) || 0) + d.volume);
+            });
+            const sorted = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+            const maxVolumePrice = sorted[0]?.[0] || 0;
+            const totalVol = Array.from(map.values()).reduce((s, v) => s + v, 0);
+            let cum = 0; const picked = [];
+            for (const [p, vol] of sorted) { cum += vol; picked.push(p); if (cum >= totalVol * 0.7) break; }
+            return { maxVolumePrice, valueArea: { upper: Math.max(...picked), lower: Math.min(...picked) } };
+        }
+        function calculateRollingVWAP(data, period = 60) {
+            if (data.length < period) return [];
+            const out = [];
+            for (let i = period - 1; i < data.length; i++) {
+                const slice = data.slice(i - period + 1, i + 1);
+                let PV = 0, V = 0;
+                slice.forEach(d => { const tp = (d.high + d.low + d.close) / 3; PV += tp * d.volume; V += d.volume; });
+                out.push({ time: data[i].time, value: V > 0 ? PV / V : slice[slice.length - 1].close });
+            }
+            return out;
+        }
+        function calculateZScore(values, period = 20) {
+            if (values.length < period) return 0;
+            const arr = values.slice(-period).map(v => v.value);
+            const mean = arr.reduce((s, v) => s + v, 0) / arr.length;
+            const variance = arr.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / arr.length;
+            const std = Math.sqrt(variance);
+            return std > 0 ? (arr[arr.length - 1] - mean) / std : 0;
+        }
+
+        function evaluateAccumulationEvidence(data) {
+            if (data.length < 20) return { score: 0, description: '데이터 부족' };
+            const recent = data.slice(-20);
+            const swingLows = findSwingLows(recent);
+            const avgVol = recent.reduce((s, d) => s + d.volume, 0) / recent.length;
+            let lowBuyingCount = 0, boxAbsorption = false;
+
+            swingLows.forEach(idx => {
+                const low = recent[idx];
+                const rng = low.close * 0.01;
+                const nearby = recent.filter(d => {
+                    const isNear = Math.abs(d.close - low.close) <= rng;
+                    const up = d.close > d.open;
+                    const hv = d.volume >= avgVol * 1.3;
+                    return isNear && up && hv;
+                });
+                if (nearby.length >= 1) lowBuyingCount++;
+            });
+
+            const obv = calculateOBV(data);
+            const obvInc = obv.length > 5 && obv[obv.length - 1].value > obv[obv.length - 6].value;
+            const upVsDown = calculateUpDownVolumeRatio(data.slice(-5));
+            if (obvInc && upVsDown >= 1.5) boxAbsorption = true;
+
+            let score = 0, desc = [];
+            if (lowBuyingCount >= 2 && boxAbsorption) { score = 6; desc.push('저점매수+박스흡수'); }
+            else if (lowBuyingCount >= 2) { score = 4; desc.push('저점 반복 매수'); }
+            else if (boxAbsorption) { score = 3; desc.push('박스권 흡수'); }
+            else if (lowBuyingCount >= 1) { score = 2; desc.push('일부 저점 매수'); }
+
+            return { score, description: desc.join(', ') || '매집 증거 미약' };
+        }
+        function evaluateVWAPAlignment(data) {
+            const vwap60 = calculateRollingVWAP(data, 60);
+            if (vwap60.length === 0) return { score: 0, description: '계산 불가' };
+            const price = data[data.length - 1].close;
+            const vwap = vwap60[vwap60.length - 1].value;
+            const dev = Math.abs(price - vwap) / vwap * 100;
+            if (dev <= 1) return { score: 6, description: 'VWAP 완벽 일치' };
+            if (dev <= 3) return { score: 4, description: 'VWAP 근접' };
+            if (dev <= 5) return { score: 2, description: 'VWAP 이탈' };
+            return { score: 0, description: 'VWAP 크게 이탈' };
+        }
+        function evaluateAccumulationStrength(data) {
+            if (data.length < 120) return { score: 0, description: '매집 강도 분석 불가 (최소 120일 데이터 필요)' };
+            const obv = calculateOBV(data);
+            const obvSlope = calculateLinearRegressionSlope(obv);
+            const vf = calculateVolumeProfile(data, 120);
+            let score = 0, desc = [];
+            if (obvSlope > 0) { score += 3; desc.push('OBV 상승'); } else { desc.push('OBV 하락'); }
+            const price = data[data.length - 1].close;
+            if (price > vf.maxVolumePrice) { score += 2; desc.push('매물대 돌파'); } else { desc.push('매물대 하단'); }
+            return { score: Math.min(5, score), description: desc.join(', ') };
+        }
+        function calculateSmartMoneyProbability(evidence, vwap, strength) {
+            let score = 0;
+            const e = evidence.score / 6, v = vwap.score / 6, s = strength.score / 5;
+            if (e >= 0.8 && v >= 0.8) score = 3;
+            else if (e >= 0.5 && v >= 0.5) score = 2;
+            else if (e >= 0.3) score = 1;
+            if (s > 0.6) score += 1;
+            const label = score >= 3 ? '매우 높음' : score > 1 ? '높음' : '보통';
+            return { score: Math.min(3, score), description: `세력 존재 가능성: ${label}` };
+        }
+        function findSwingLows(data, period = 5) {
+            const out = []; if (data.length < period * 2 + 1) return out;
+            for (let i = period; i < data.length - period; i++) {
+                if (data[i].low < Math.min(...data.slice(i - period, i).map(d => d.low)) &&
+                    data[i].low < Math.min(...data.slice(i + 1, i + period + 1).map(d => d.low))) out.push(i);
+            }
+            return out;
+        }
+        function findSwingHighs(data, period = 5) {
+            const out = []; if (data.length < period * 2 + 1) return out;
+            for (let i = period; i < data.length - period; i++) {
+                if (data[i].high > Math.max(...data.slice(i - period, i).map(d => d.high)) &&
+                    data[i].high > Math.max(...data.slice(i + 1, i + period + 1).map(d => d.high))) out.push(i);
+            }
+            return out;
+        }
+        function calculateUpDownVolumeRatio(data) {
+            let upV = 0, dnV = 0;
+            data.forEach(d => { if (d.close > d.open) upV += d.volume; else if (d.close < d.open) dnV += d.volume; });
+            return dnV > 0 ? upV / dnV : (upV > 0 ? 999 : 0);
+        }
+
+        function evaluateAccumulationAnalysis(data) {
+            if (data.length < 60) return { score: 0, details: {} };
+            let total = 0, details = {};
+            const e = evaluateAccumulationEvidence(data); total += e.score; details.evidence = e.description;
+            const v = evaluateVWAPAlignment(data); total += v.score; details.vwap = v.description;
+            const s = evaluateAccumulationStrength(data); total += s.score; details.strength = s.description;
+            const p = calculateSmartMoneyProbability(e, v, s); total += p.score; details.probability = p.description;
+            return { score: total, details };
+        }
+
+        /* ---------- 동적 가중치 & 리스크 ---------- */
+        function calculateVolatility(data, period) {
+            const n = period || data.length;
+            if (data.length < 2) return 0;
+            const returns = [];
+            for (let i = data.length - n + 1; i < data.length; i++) {
+                if (i <= 0) continue;
+                returns.push((data[i].close - data[i - 1].close) / data[i - 1].close);
+            }
+            const mean = returns.reduce((s, r) => s + r, 0) / returns.length || 0;
+            const variance = returns.reduce((s, r) => s + Math.pow(r - mean, 2), 0) / returns.length || 0;
+            return Math.sqrt(variance) * Math.sqrt(224); // 연율화 근사
+        }
+        function calculateTrendStrength(data) {
+            if (data.length < 20) return 0;
+            const sma20 = calculateSMA(data, 20);
+            const sma60 = calculateSMA(data, Math.min(60, data.length));
+            if (!sma20.length || !sma60.length) return 0;
+            const a = sma20[sma20.length - 1].value, b = sma60[sma60.length - 1].value;
+            return b ? Math.abs(a - b) / b : 0;
+        }
+        function calculateVolumeStrength(data, period = Math.min(20, data.length)) {
+            if (data.length < 2) return 0;
+            const recent = data.slice(-period).reduce((s, d) => s + d.volume, 0) / Math.max(1, period);
+            const avgAll = data.reduce((s, d) => s + d.volume, 0) / data.length;
+            return avgAll > 0 ? recent / avgAll : 0;
+        }
+        function calculateDynamicWeights(data, period) {
+            if (data.length < Math.max(10, period || 10)) return getDefaultWeights();
+            const recent = data.slice(-(period || data.length));
+            const volatility = calculateVolatility(recent);
+            const trendStrength = calculateTrendStrength(recent);
+            const volume = calculateVolumeStrength(recent);
+
+            const weights = {
+                rsi: volatility > 0.4 ? 0.25 : 0.15,
+                macd: trendStrength > 0.6 ? 0.30 : 0.20,
+                adx: trendStrength > 0.5 ? 0.25 : 0.15,
+                bollinger: volatility > 0.3 ? 0.20 : 0.15,
+                volume: volume > 0.6 ? 0.15 : 0.10,
+                foreign: 0.10,
+                vwap: 0.10
+            };
+            const total = Object.values(weights).reduce((s, w) => s + w, 0);
+            Object.keys(weights).forEach(k => weights[k] /= total);
+            return weights;
+        }
+        function getDefaultWeights() {
+            return { rsi: 0.2, macd: 0.25, adx: 0.2, bollinger: 0.15, volume: 0.1, foreign: 0.05, vwap: 0.05 };
+        }
+
+        /* ---------- 스코어링 / 백테스트 / 리스크 ---------- */
+        function getAnalysisPeriods(mode) {
+            const dataLength = originalData.length;
+            const modes = {
+                'very-short': { rsi: 5, macdFast: 5, macdSlow: 10, bb: 5, adx: 5, minData: 10 },
+                'short': { rsi: 10, macdFast: 7, macdSlow: 14, bb: 10, adx: 10, minData: 20 },
+                'mid': { rsi: 14, macdFast: 12, macdSlow: 26, bb: 20, adx: 14, minData: 60 },
+                'long': { rsi: 20, macdFast: 20, macdSlow: 40, bb: 20, adx: 20, minData: 112 },
+                'very-long': { rsi: 25, macdFast: 25, macdSlow: 50, bb: 20, adx: 25, minData: 224 }
+            };
+            const sel = modes[mode] || modes['mid'];
+            // 최소 minData 보장, 상한 224, 데이터 길이에 맞춤
+            const analysisData = Math.max(sel.minData, Math.min(dataLength, 224));
+            const p = { ...sel, analysisData };
+            p.rsi = Math.min(sel.rsi, Math.max(2, Math.floor(analysisData / 2)));
+            p.macdFast = Math.min(sel.macdFast, Math.max(2, Math.floor(analysisData / 3)));
+            p.macdSlow = Math.min(sel.macdSlow, Math.max(3, Math.floor(analysisData / 2.5)));
+            p.bb = Math.min(sel.bb, Math.max(2, Math.floor(analysisData / 2)));
+            p.adx = Math.min(sel.adx, Math.max(2, Math.floor(analysisData / 2)));
+            return p;
+        }
+        function getRiskTolerance() {
+            const v = $('riskTolerance').value;
+            if (v === 'conservative') return 0.01;
+            if (v === 'moderate') return 0.02;
+            return 0.02;
+        }
+
+        function calculateAdvancedAIScore(data, mode) {
+            const periods = getAnalysisPeriods(mode);
+            const n = periods.analysisData;
+            const analysisData = data.slice(-n);
+
+            const rsi = calculateRSI(analysisData, periods.rsi);
+            const macd = calculateMACD(analysisData, periods.macdFast, periods.macdSlow);
+            const adx = calculateADX(analysisData, periods.adx);
+            const bb = calculateBollingerBands(analysisData, periods.bb);
+
+            const weights = calculateDynamicWeights(analysisData, n);
+            const price = analysisData[analysisData.length - 1].close;
+            const currentRSI = rsi.length ? rsi[rsi.length - 1].value : 50;
+            const currentMACD = macd.macd.length ? macd.macd[macd.macd.length - 1].value : 0;
+            const currentSignal = macd.signal.length ? macd.signal[macd.signal.length - 1].value : 0;
+            const currentADX = adx.length ? adx[adx.length - 1].value : 20;
+
+            let score = 50, details = {}, signals = [];
+            // RSI
+            let rsiScore = 0;
+            if (currentRSI > 70) { rsiScore = Math.max(-20, (80 - currentRSI) * -2); details.rsi = `과매수 (${currentRSI.toFixed(1)})`; signals.push('RSI 과매수'); }
+            else if (currentRSI < 30) { rsiScore = Math.min(25, (30 - currentRSI) * 2); details.rsi = `과매도 (${currentRSI.toFixed(1)})`; signals.push('RSI 과매도 매수 기회'); }
+            else { rsiScore = ((currentRSI - 50) / 20) * 15; details.rsi = `${currentRSI > 50 ? '매수세' : '매도세'} (${currentRSI.toFixed(1)})`; }
+            score += rsiScore * weights.rsi;
+
+            // MACD
+            let macdScore = 0;
+            const macdDiff = currentMACD - currentSignal;
+            const prevMACD = macd.macd.length > 1 ? macd.macd[macd.macd.length - 2].value : currentMACD;
+            const prevSignal = macd.signal.length > 1 ? macd.signal[macd.signal.length - 2].value : currentSignal;
+            const prevDiff = prevMACD - prevSignal;
+            if (macdDiff > 0 && prevDiff <= 0) { macdScore = 30; details.macd = '골든크로스 발생'; signals.push('MACD 골든크로스'); }
+            else if (macdDiff < 0 && prevDiff >= 0) { macdScore = -25; details.macd = '데드크로스 발생'; signals.push('MACD 데드크로스'); }
+            else if (macdDiff > 0) { macdScore = 15; details.macd = '상승 추세 지속'; }
+            else { macdScore = -10; details.macd = '하락 추세 지속'; }
+            score += macdScore * weights.macd;
+
+            // ADX
+            let adxScore = 0;
+            if (currentADX > 25) { adxScore = Math.min(20, currentADX - 25); details.adx = `강한 추세 (${currentADX.toFixed(1)})`; }
+            else { adxScore = -5; details.adx = `약한 추세 (${currentADX.toFixed(1)})`; }
+            score += adxScore * weights.adx;
+
+            // Bollinger
+            let bbScore = 0;
+            if (bb.upper.length && bb.lower.length) {
+                const up = bb.upper[bb.upper.length - 1].value;
+                const lo = bb.lower[bb.lower.length - 1].value;
+                const mid = bb.middle[bb.middle.length - 1].value;
+                if (price > up) { bbScore = -10; details.bollinger = '상단 돌파 (과열 주의)'; signals.push('볼린저 상단 돌파'); }
+                else if (price < lo) { bbScore = 20; details.bollinger = '하단 터치 (반등 기대)'; signals.push('볼린저 하단 매수 기회'); }
+                else if (price > mid) { bbScore = 10; details.bollinger = '중심선 상단 (상승세)'; }
+                else { bbScore = -5; details.bollinger = '중심선 하단 (하락세)'; }
+            }
+            score += bbScore * weights.bollinger;
+
+            // Volume / Foreign
+            const cd = analysisData[analysisData.length - 1];
+            const avgVol10 = analysisData.slice(-10).reduce((s, d) => s + d.volume, 0) / Math.max(1, Math.min(10, analysisData.length));
+            let volScore = 0;
+            if (cd.volume > avgVol10 * 2) { volScore = 15; details.volume = '거래량 폭증 (관심 급증)'; signals.push('거래량 급증'); }
+            else if (cd.volume > avgVol10 * 1.5) { volScore = 10; details.volume = '거래량 증가 (관심 증가)'; }
+            else if (cd.volume < avgVol10 * 0.5) { volScore = -8; details.volume = '거래량 감소 (관심 저조)'; }
+            else { details.volume = '거래량 보통'; }
+            score += volScore * weights.volume;
+
+            let foreignScore = 0;
+            const fr = Number.isFinite(cd.foreignRatio) ? cd.foreignRatio : 0;
+            if (fr > 40) { foreignScore = 15; details.foreign = `외인비 매우 높음 (${fr.toFixed(1)}%)`; signals.push('외국인 집중 매수'); }
+            else if (fr > 25) { foreignScore = 8; details.foreign = `외인비 높음 (${fr.toFixed(1)}%)`; }
+            else if (fr > 15) { foreignScore = 3; details.foreign = `외인비 보통 (${fr.toFixed(1)}%)`; }
+            else { foreignScore = -3; details.foreign = `외인비 낮음 (${fr.toFixed(1)}%)`; }
+            score += foreignScore * weights.foreign;
+
+            score = Math.max(0, Math.min(80, score));
+
+            let finalScore = score;
+            let shortTermDetails = {};
+            if (mode === 'short' || mode === 'very-short') {
+                if (analysisData.length >= 60) {
+                    const acc = evaluateAccumulationAnalysis(analysisData);
+                    shortTermDetails = acc.details;
+                    finalScore = Math.max(0, Math.min(100, score + acc.score));
+                } else {
+                    shortTermDetails = {
+                        evidence: '매집 증거 분석 불가 (최소 60일 데이터 필요)',
+                        vwap: 'VWAP 분석 불가 (최소 60일 데이터 필요)',
+                        strength: '매집 강도 분석 불가 (최소 60일 데이터 필요)',
+                        probability: '세력 존재율 분석 불가 (최소 60일 데이터 필요)'
+                    };
+                }
+            }
+
+            const patternAlerts = findChartPatterns(analysisData);
+            let patternScore = 0;
+            if (patternAlerts.length) patternAlerts.forEach(p => patternScore += p.score);
+            finalScore = Math.max(0, Math.min(100, finalScore + patternScore));
+
+            const confidence = calculateConfidence(signals, n, weights);
+            const backtestResult = performAdvancedBacktest(data, mode);
+
+            return {
+                score: finalScore,
+                details: { ...details, ...shortTermDetails, ...(patternAlerts.length ? { patterns: patternAlerts } : {}) },
+                commentary: generateAdvancedCommentary(finalScore, { ...details, ...(patternAlerts.length ? { patterns: patternAlerts } : {}) }, signals),
+                confidence,
+                backtest: backtestResult,
+                signals, weights
+            };
+        }
+        function calculateConfidence(signals, dataLength, weights) {
+            let base = Math.min(0.9, dataLength / 224);
+            const strong = signals.filter(s =>
+                s.includes('골든크로스') || s.includes('과매도') || s.includes('급증') || s.includes('집중 매수') || s.includes('W자형') || s.includes('박스권 상단 돌파')
+            ).length;
+            const bonus = Math.min(0.3, strong * 0.1);
+            const w = Object.values(weights);
+            const varW = w.reduce((s, x) => s + Math.pow(x - 1 / w.length, 2), 0) / w.length;
+            const diversity = Math.max(0, 0.2 - varW * 2);
+            return Math.min(1, base + bonus + diversity);
+        }
+
+        function performAdvancedBacktest(data, mode) {
+            const periods = getAnalysisPeriods(mode);
+            const lookback = Math.max(30, periods.analysisData);
+            if (data.length < lookback + 10) return getEmptyBacktest();
+
+            const risk = getRiskTolerance();
+            let portfolio = { cash: 1000000, position: 0, trades: [], peak: 1000000 };
+
+            for (let i = lookback; i < data.length - 10; i++) {
+                const test = data.slice(i - lookback, i);
+                const result = calculateAdvancedAIScore(test, mode);
+
+                if (result.score >= 70 && result.confidence >= 0.6 && portfolio.position === 0) {
+                    const entry = data[i].close;
+                    const stopLoss = entry * (1 - risk * 2);
+                    const takeProfit = entry * (1 + risk * 4);
+                    const riskAmount = portfolio.cash * risk;
+                    const stopDist = Math.max(1, entry - stopLoss);
+                    const positionSize = Math.floor(riskAmount / stopDist);
+                    const invest = Math.min(positionSize * entry, portfolio.cash * 0.3);
+
+                    portfolio.position = invest / entry;
+                    portfolio.cash -= invest;
+                    portfolio.entryPrice = entry;
+                    portfolio.stopLoss = stopLoss;
+                    portfolio.takeProfit = takeProfit;
+                    portfolio.entryDate = i;
+                }
+
+                if (portfolio.position > 0) {
+                    const price = data[i].close;
+                    const hold = i - portfolio.entryDate;
+                    let shouldExit = false, reason = '';
+                    if (price <= portfolio.stopLoss) { shouldExit = true; reason = 'StopLoss'; }
+                    else if (price >= portfolio.takeProfit) { shouldExit = true; reason = 'TakeProfit'; }
+                    else if (hold >= 20) { shouldExit = true; reason = 'MaxHolding'; }
+                    else if (result.score <= 40) { shouldExit = true; reason = 'ScoreDecline'; }
+
+                    if (shouldExit) {
+                        const exitValue = portfolio.position * price;
+                        const pnl = exitValue - (portfolio.position * portfolio.entryPrice);
+                        const returnPct = (pnl / (portfolio.position * portfolio.entryPrice)) * 100;
+
+                        portfolio.trades.push({
+                            entryPrice: portfolio.entryPrice, exitPrice: price,
+                            entryDate: portfolio.entryDate, exitDate: i,
+                            holdingDays: hold, pnl, returnPct, exitReason: reason
+                        });
+
+                        portfolio.cash += exitValue;
+                        portfolio.position = 0;
+                        portfolio.peak = Math.max(portfolio.peak, portfolio.cash);
+                    }
+                }
+            }
+            return calculateBacktestMetrics(portfolio);
+        }
+        function getEmptyBacktest() {
+            return { totalReturn: 0, winRate: 0, avgHoldingDays: 0, totalTrades: 0, maxDrawdown: 0, sharpeRatio: 0 };
+        }
+        function calculateBacktestMetrics(portfolio) {
+            const trades = portfolio.trades;
+            if (!trades.length) return getEmptyBacktest();
+
+            const totalReturn = ((portfolio.cash - 1000000) / 1000000) * 100;
+            const wins = trades.filter(t => t.pnl > 0);
+            const winRate = (wins.length / trades.length) * 100;
+            const avgHoldingDays = trades.reduce((s, t) => s + t.holdingDays, 0) / trades.length;
+
+            // 단순 캐시 기반 드로우다운 (보수적)
+            let maxDD = 0, peak = 1000000, cash = 1000000;
+            for (const t of trades) {
+                cash += t.pnl;
+                peak = Math.max(peak, cash);
+                const dd = ((peak - cash) / peak) * 100;
+                maxDD = Math.max(maxDD, dd);
+            }
+
+            const returns = trades.map(t => t.returnPct);
+            const avgRet = returns.reduce((s, r) => s + r, 0) / returns.length;
+            const returnStd = Math.sqrt(returns.reduce((s, r) => s + Math.pow(r - avgRet, 2), 0) / returns.length) || 0;
+            const sharpeRatio = returnStd > 0 ? (avgRet / returnStd) : 0;
+
+            return { totalReturn, winRate, avgHoldingDays, totalTrades: trades.length, maxDrawdown: maxDD, sharpeRatio };
+        }
+
+        /* ---------- 패턴들 (원본 유지) ---------- */
+        function findChartPatterns(data) {
+            const patterns = [];
+            const recent = data, L = recent.length;
+
+            // W자형 (Double Bottom)
+            if (L >= 30) {
+                const lows = findSwingLows(recent, 5);
+                if (lows.length >= 2) {
+                    const a = lows[lows.length - 2], b = lows[lows.length - 1];
+                    if (b > a && Math.abs(recent[b].low - recent[a].low) / recent[a].low < 0.05) {
+                        const highBetween = Math.max(...recent.slice(a, b).map(d => d.high));
+                        if (recent[b].high > highBetween) patterns.push({ type: 'W자형 (Double Bottom)', description: '저점 이중형 + 반전 시도', score: 15 });
+                    }
+                }
+            }
+            // M자형 (Double Top)
+            if (L >= 30) {
+                const highs = findSwingHighs(recent, 5);
+                if (highs.length >= 2) {
+                    const a = highs[highs.length - 2], b = highs[highs.length - 1];
+                    if (b > a && Math.abs(recent[b].high - recent[a].high) / recent[a].high < 0.05) {
+                        const lowBetween = Math.min(...recent.slice(a, b).map(d => d.low));
+                        if (recent[b].low < lowBetween) patterns.push({ type: 'M자형 (Double Top)', description: '고점 이중형 + 반전 시도', score: -15 });
+                    }
+                }
+            }
+            // 박스권 상단 돌파
+            if (L >= 60) {
+                const last60 = recent.slice(-60);
+                const high60 = Math.max(...last60.map(d => d.high));
+                const price = recent[recent.length - 1].close;
+                const avgV = last60.reduce((s, d) => s + d.volume, 0) / last60.length;
+                if (price > high60 && recent[recent.length - 1].volume > avgV * 2) {
+                    patterns.push({ type: '박스권 상단 돌파', description: '60일 상단을 대량거래로 돌파', score: 10 });
+                }
+            }
+            // 헤드앤숄더
+            if (L >= 60) {
+                const hs = findHeadAndShoulders(recent); if (hs) patterns.push(hs);
+            }
+            // 삼각형들
+            if (L >= 60) {
+                const at = findAscendingTriangle(recent); if (at) patterns.push(at);
+                const dt = findDescendingTriangle(recent); if (dt) patterns.push(dt);
+            }
+            // 깃발들
+            if (L >= 60) {
+                const bf = findBullishFlagPennant(recent); if (bf) patterns.push(bf);
+                const br = findBearishFlagPennant(recent); if (br) patterns.push(br);
+            }
+            return patterns;
+        }
+        function findHeadAndShoulders(data) {
+            const highs = findSwingHighs(data, 10);
+            if (highs.length < 3) return null;
+            for (let i = 1; i < highs.length - 1; i++) {
+                const L = data[highs[i - 1]].high, H = data[highs[i]].high, R = data[highs[i + 1]].high;
+                if (H > L && H > R && Math.abs(L - R) / L < 0.05) {
+                    const neckline = (data[highs[i - 1]].low + data[highs[i + 1]].low) / 2;
+                    if (data[data.length - 1].close < neckline) {
+                        return { type: '헤드앤숄더', description: '완성형 → 하락 가능성', score: -20 };
+                    }
+                }
+            }
+            return null;
+        }
+        function findAscendingTriangle(data) {
+            const highs = findSwingHighs(data), lows = findSwingLows(data);
+            if (highs.length >= 2 && lows.length >= 2) {
+                const res = data[highs[highs.length - 1]].high;
+                const resSlope = calculateLinearRegressionSlope(highs.map(i => ({ value: data[i].high })));
+                const supSlope = calculateLinearRegressionSlope(lows.map(i => ({ value: data[i].low })));
+                if (Math.abs(resSlope) < 0.001 && supSlope > 0 && data[data.length - 1].close > res * 1.01) {
+                    return { type: '상승 삼각형', description: '수평 저항 + 상승 지지 → 돌파', score: 15 };
+                }
+            }
+            return null;
+        }
+        function findDescendingTriangle(data) {
+            const highs = findSwingHighs(data), lows = findSwingLows(data);
+            if (highs.length >= 2 && lows.length >= 2) {
+                const sup = data[lows[lows.length - 1]].low;
+                const supSlope = calculateLinearRegressionSlope(lows.map(i => ({ value: data[i].low })));
+                const resSlope = calculateLinearRegressionSlope(highs.map(i => ({ value: data[i].high })));
+                if (Math.abs(supSlope) < 0.001 && resSlope < 0 && data[data.length - 1].close < sup * 0.99) {
+                    return { type: '하락 삼각형', description: '수평 지지 이탈', score: -15 };
+                }
+            }
+            return null;
+        }
+        function findBullishFlagPennant(data) {
+            if (data.length < 20) return null;
+            const prices = data.map(d => d.close);
+            const H = Math.max(...prices), L = Math.min(...prices);
+            let pole = false;
+            for (let i = 10; i < data.length - 1; i++) {
+                const a = data[i - 10].close, b = data[i].close;
+                if ((b - a) / a > 0.1 && (H - L) / L < 0.05) pole = true;
+            }
+            if (pole) {
+                const breakout = data[data.length - 1].close > H * 1.01;
+                const vSpike = data[data.length - 1].volume > data.slice(-20).reduce((s, d) => s + d.volume, 0) / 20 * 2;
+                if (breakout && vSpike) return { type: '상승 깃발형', description: '강한 상승 후 돌파', score: 10 };
+            }
+            return null;
+        }
+        function findBearishFlagPennant(data) {
+            if (data.length < 20) return null;
+            const prices = data.map(d => d.close);
+            const H = Math.max(...prices), L = Math.min(...prices);
+            let pole = false;
+            for (let i = 10; i < data.length - 1; i++) {
+                const a = data[i - 10].close, b = data[i].close;
+                if ((a - b) / a > 0.1 && (H - L) / L < 0.05) pole = true;
+            }
+            if (pole) {
+                const breakout = data[data.length - 1].close < L * 0.99;
+                const vSpike = data[data.length - 1].volume > data.slice(-20).reduce((s, d) => s + d.volume, 0) / 20 * 2;
+                if (breakout && vSpike) return { type: '하락 깃발형', description: '강한 하락 후 이탈', score: -10 };
+            }
+            return null;
+        }
+
+        function generateAdvancedCommentary(score, details, signals) {
+            let text = '', action = '';
+            if (score >= 90) { text = '강력한 매수 신호. **세력 매집+기술적 강세** 결합.'; action = '분할 매수 진입 고려.'; }
+            else if (score >= 80) { text = '매수 신호 강함. **매집 확인** 및 지표 우호적.'; action = '적극적 분할 매수.'; }
+            else if (score >= 70) { text = '매수 신호. **추세 긍정** + 매수 움직임.'; action = '소량 분할 매수.'; }
+            else if (score >= 60) { text = '중립에서 **매수 기미**.'; action = '관심 편입, 시점 포착.'; }
+            else if (score >= 50) { text = '중립. 뚜렷한 신호 없음.'; action = '관망.'; }
+            else if (score >= 40) { text = '약한 매도. **단기 하락 위험**.'; action = '일부 비중 축소.'; }
+            else if (score >= 30) { text = '매도 신호 강함. **추세 전환 위험**.'; action = '신속 정리 권장.'; }
+            else { text = '강한 매도. **하락 추세** 가능성 큼.'; action = '전량 청산 후 관망.'; }
+            const extra = getHoldingAdvice(score, details);
+            let out = `${text} ${action} ${extra} 주요 시그널: ${signals.slice(0, 3).join(', ')}.`;
+            if (details.patterns?.length) out += ` 감지된 패턴: ${details.patterns.map(p => p.type).join(', ')}.`;
+            out += ' 본 분석은 참고용이며 리스크 관리가 필요합니다.';
+            return out;
+        }
+        function getHoldingAdvice(score, details) {
+            if (score >= 70 && details.macd?.includes('골든크로스')) return '상승 시작 가능성. **보유 유지** 유효.';
+            if (score >= 80 && details.volume?.includes('폭증')) return '강한 모멘텀. **추가 상승 기대**.';
+            if (score <= 30 && details.macd?.includes('데드크로스')) return '하락 전환. **전량 매도 고려**.';
+            if (score >= 45 && score <= 60) return '애매한 구간. **추세 명확시까지 보유**.';
+            return '';
+        }
+
+        /* ---------- 지지/저항/차트 렌더 ---------- */
+        function aggregateToTimeframe(data, tf) {
+            if (tf === 'daily') return data;
+            const grouped = {};
+            data.forEach(d => {
+                const date = new Date(d.time); let key;
+                if (tf === 'weekly') { const sow = new Date(date); sow.setDate(date.getDate() - date.getDay()); key = sow.toISOString().split('T')[0]; }
+                else if (tf === 'monthly') { key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`; }
+                if (!grouped[key]) grouped[key] = { time: key, open: d.open, high: d.high, low: d.low, close: d.close, volume: 0, amount: 0, credit: 0, foreign: 0 };
+                const g = grouped[key];
+                g.high = Math.max(g.high, d.high);
+                g.low = Math.min(g.low, d.low);
+                g.close = d.close;
+                g.volume += d.volume; g.amount += d.amount;
+                g.credit = (g.credit + d.credit) / 2; g.foreign = (g.foreign + d.foreign) / 2;
+            });
+            return Object.values(grouped).sort((a, b) => new Date(a.time) - new Date(b.time));
+        }
+        function calculateSupportResistance(data, mode) {
+            if (data.length < 10) return { support1: null, support2: null, resistance1: null, resistance2: null };
+            let look;
+            switch (mode) {
+                case 'very-short': look = 5; break;
+                case 'short': look = 20; break;
+                case 'mid': look = 60; break;
+                case 'long': look = 112; break;
+                case 'very-long': look = 224; break;
+                default: look = data.length; break;
+            }
+            const arr = data.slice(-look); if (arr.length < 5) return { support1: null, support2: null, resistance1: null, resistance2: null };
+            const price = arr[arr.length - 1].close;
+            const supports = [], resistances = [];
+            for (let i = 2; i < arr.length - 2; i++) {
+                const c = arr[i], p2 = arr[i - 2], p1 = arr[i - 1], n1 = arr[i + 1], n2 = arr[i + 2];
+                if (c.low < p2.low && c.low < p1.low && c.low < n1.low && c.low < n2.low) supports.push(c.low);
+                if (c.high > p2.high && c.high > p1.high && c.high > n1.high && c.high > n2.high) resistances.push(c.high);
+            }
+            const sma20 = calculateSMA(arr, Math.min(20, arr.length));
+            const sma60 = calculateSMA(arr, Math.min(60, arr.length));
+            if (sma20.length) { const v = sma20[sma20.length - 1].value; if (v < price) supports.push(v); else resistances.push(v); }
+            if (sma60.length) { const v = sma60[sma60.length - 1].value; if (v < price) supports.push(v); else resistances.push(v); }
+
+            const uniqSup = [...new Set(supports)].sort((a, b) => b - a);
+            const uniqRes = [...new Set(resistances)].sort((a, b) => a - b);
+            const vs = uniqSup.filter(s => s < price * 0.98);
+            const vr = uniqRes.filter(r => r > price * 1.02);
+            return { support1: vs[0] ?? null, support2: vs[1] ?? null, resistance1: vr[0] ?? null, resistance2: vr[1] ?? null };
+        }
+        function renderChart(tf = 'daily') {
+            const data = aggregateToTimeframe(originalData, tf);
+            if (!data.length) return;
+            if (chart) chart.remove();
+            chart = LightweightCharts.createChart($('mainChart'), {
+                width: $('mainChart').clientWidth, height: 500,
+                layout: { background: { type: 'solid', color: '#ffffff' }, textColor: '#333' },
+                grid: { vertLines: { color: '#f0f0f0' }, horzLines: { color: '#f0f0f0' } },
+                timeScale: { timeVisible: true, secondsVisible: false }
+            });
+
+            const sma5 = calculateSMA(data, 5);
+            const sma20 = calculateSMA(data, 20);
+            const sma60 = calculateSMA(data, 60);
+            const sma112 = calculateSMA(data, 112);
+            const sma224 = calculateSMA(data, 224);
+
+            if (sma5.length) chart.addLineSeries({ color: '#FF0000', lineWidth: 1, title: 'SMA5' }).setData(sma5);
+            if (sma20.length) chart.addLineSeries({ color: '#2196F3', lineWidth: 2, title: 'SMA20' }).setData(sma20);
+            if (sma60.length) chart.addLineSeries({ color: '#ff9800', lineWidth: 2, title: 'SMA60' }).setData(sma60);
+            if (sma112.length) chart.addLineSeries({ color: '#4caf50', lineWidth: 2, title: 'SMA112' }).setData(sma112);
+            if (sma224.length) chart.addLineSeries({ color: '#9c27b0', lineWidth: 2, title: 'SMA224' }).setData(sma224);
+
+            const bb = calculateBollingerBands(data, 20, 2);
+            if (bb.upper.length) {
+                chart.addLineSeries({ color: 'rgba(33, 150, 243, 0.3)', lineWidth: 1 }).setData(bb.upper);
+                chart.addLineSeries({ color: 'rgba(33, 150, 243, 0.3)', lineWidth: 1 }).setData(bb.lower);
+            }
+
+            candleSeries = chart.addCandlestickSeries({
+                upColor: '#ef5350', downColor: '#2196F3',
+                borderVisible: false, wickUpColor: '#ef5350', wickDownColor: '#2196F3'
+            });
+            candleSeries.setData(data.map(d => ({ time: d.time, open: d.open, high: d.high, low: d.low, close: d.close })));
+            if (lastElliott && lastElliott.markers) { candleSeries.setMarkers(lastElliott.markers); }
+
+            const volume = chart.addHistogramSeries({ color: '#26a69a', priceFormat: { type: 'volume' }, priceScaleId: '' });
+            volume.setData(data.map(d => ({ time: d.time, value: d.volume, color: d.close >= d.open ? '#ef535080' : '#2196F380' })));
+
+            const { support1, support2, resistance1, resistance2 } = calculateSupportResistance(originalData, $('analysisMode').value);
+            const lineData = data.map(d => ({ time: d.time }));
+            if (support1 != null) chart.addLineSeries({ color: 'rgba(33,150,243,0.8)', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid, title: '1차 지지선' }).setData(lineData.map(d => ({ ...d, value: support1 })));
+            if (support2 != null) chart.addLineSeries({ color: 'rgba(33,150,243,0.5)', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dotted, title: '2차 지지선' }).setData(lineData.map(d => ({ ...d, value: support2 })));
+            if (resistance1 != null) chart.addLineSeries({ color: 'rgba(239,83,80,0.8)', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Solid, title: '1차 저항선' }).setData(lineData.map(d => ({ ...d, value: resistance1 })));
+            if (resistance2 != null) chart.addLineSeries({ color: 'rgba(239,83,80,0.5)', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dotted, title: '2차 저항선' }).setData(lineData.map(d => ({ ...d, value: resistance2 })));
+            chart.timeScale().fitContent();
+            currentTF = tf;
+        }
+
+        /* ---------- UI 업데이트 ---------- */
+        function analyzeData() {
+            if (!originalData.length) return;
+            const btn = $('applyBtn'), icon = btn.querySelector('i');
+            btn.disabled = true; icon.classList.add('loading-spin');
+
+            setTimeout(() => {
+                const mode = $('analysisMode').value;
+                const periods = getAnalysisPeriods(mode);
+
+                $('rsiPeriod').value = periods.rsi;
+                $('macdFast').value = periods.macdFast;
+                $('macdSlow').value = periods.macdSlow;
+                $('bbPeriod').value = periods.bb;
+
+                const scoreResult = calculateAdvancedAIScore(originalData, mode);
+                const riskMetrics = calculateRiskMetrics(originalData, mode);
+                const { support1, support2, resistance1, resistance2 } = calculateSupportResistance(originalData, mode);
+
+                // 엘리엇: 일봉 기준으로 스캔(또는 currentTF 사용 가능)
+                const elliottData = aggregateToTimeframe(originalData, 'daily');
+                lastElliott = detectElliottWaves(elliottData);
+                updateElliottPanel(lastElliott);
+                // 종합 점수 보정(표시용): +8~-5 가산
+                const displayResult = { ...scoreResult, score: Math.max(0, Math.min(100, scoreResult.score + (lastElliott?.scoreAdjust || 0))) };
+                updateScoreCard(displayResult, mode);
+                updateCommentary(displayResult);
+
+                updateRiskMetrics(riskMetrics);
+                updateIndicators(scoreResult.details);
+                updateSupportResistance(support1, support2, resistance1, resistance2);
+                updateBacktestResults(scoreResult.backtest);
+                updatePatternAlerts(scoreResult.details.patterns || []);
+
+                renderChart(currentTF);
+                renderElliottMarkers(lastElliott);
+
+                btn.disabled = false; icon.classList.remove('loading-spin');
+            }, 100);
+        }
+        function calculateRiskMetrics(data, mode) {
+            const p = getAnalysisPeriods(mode);
+            const analysisData = data.slice(-p.analysisData);
+            const volatility = calculateVolatility(analysisData, analysisData.length);
+            const returns = calculateReturns(analysisData);
+            const maxDrawdown = calculateMaxDrawdown(returns);
+            const sharpeRatio = calculateSharpeRatio(returns);
+            const positionSize = calculatePositionSize(volatility);
+            return { volatility, maxDrawdown, sharpeRatio, positionSize };
+        }
+        function calculateReturns(data) {
+            const out = []; for (let i = 1; i < data.length; i++) out.push((data[i].close - data[i - 1].close) / data[i - 1].close);
+            return out;
+        }
+        function calculateMaxDrawdown(returns) {
+            let maxDD = 0, peak = 0, cum = 1;
+            for (const r of returns) { cum *= (1 + r); peak = Math.max(peak, cum); const dd = (peak - cum) / peak; maxDD = Math.max(maxDD, dd); }
+            return maxDD * 100;
+        }
+        function calculateSharpeRatio(returns) {
+            if (!returns.length) return 0;
+            const avg = returns.reduce((s, r) => s + r, 0) / returns.length;
+            const std = Math.sqrt(returns.reduce((s, r) => s + Math.pow(r - avg, 2), 0) / returns.length) || 0;
+            return std > 0 ? (avg / std) : 0;
+        }
+        function calculatePositionSize(volatility) {
+            // 변동성 역비례 간단 배분 (예시)
+            if (volatility <= 0) return 10;
+            const x = 1 / volatility; // 변동성 낮을수록 비중 ↑
+            return Math.max(5, Math.min(30, x * 10));
+        }
+        function updateScoreCard(result, mode) {
+            const grade = gradeScore(result.score);
+            const card = $('scoreCard');
+            card.className = `score-card ${grade.class}`;
+            const modeText = ({
+                'very-short': '초단기 분석 (5일)', 'short': '단기 분석 (20일)', 'mid': '중기 분석 (60일)', 'long': '장기 분석 (112일)', 'very-long': '초장기 분석 (224일)'
+            })[mode] || '';
+            const confidenceText = `신뢰도: ${(result.confidence * 100).toFixed(0)}%`;
+            card.innerHTML = `
+                <div class="score-value">${Math.round(result.score)}</div>
+                <div class="score-label">${grade.label}</div>
+                <div class="score-mode">${modeText}</div>
+                <div class="score-confidence">${confidenceText}</div>
+            `;
+        }
+        function gradeScore(score) {
+            if (score >= 90) return { label: '강력 매수', class: 'strong-buy' };
+            if (score >= 80) return { label: '매수', class: 'buy' };
+            if (score >= 70) return { label: '약한 매수', class: 'buy' };
+            if (score >= 50) return { label: '중립', class: 'neutral' };
+            if (score >= 40) return { label: '약한 매도', class: 'sell' };
+            if (score >= 30) return { label: '매도', class: 'sell' };
+            return { label: '강력 매도', class: 'strong-sell' };
+        }
+        function updateCommentary(result) {
+            $('commentary').innerHTML = `<h3>AI 분석 코멘터리</h3><p>${result.commentary}</p>`;
+        }
+        function updateRiskMetrics(m) {
+            $('volatilityValue').textContent = `${(m.volatility * 100).toFixed(1)}%`;
+            $('volatilityValue').className = `risk-value ${m.volatility > 0.3 ? 'high' : m.volatility > 0.2 ? 'medium' : 'low'}`;
+            $('maxDrawdownValue').textContent = `${m.maxDrawdown.toFixed(1)}%`;
+            $('maxDrawdownValue').className = `risk-value ${m.maxDrawdown > 20 ? 'high' : m.maxDrawdown > 10 ? 'medium' : 'low'}`;
+            $('sharpeValue').textContent = m.sharpeRatio.toFixed(2);
+            $('sharpeValue').className = `risk-value ${m.sharpeRatio > 1 ? 'low' : m.sharpeRatio > 0 ? 'medium' : 'high'}`;
+            $('positionSizeValue').textContent = `${m.positionSize.toFixed(0)}%`;
+            $('positionSizeValue').className = 'risk-value medium';
+        }
+        function updateIndicators(details) {
+            const grid = $('indicatorsGrid'); grid.innerHTML = '';
+            const map = {
+                rsi: { title: 'RSI', desc: '상대강도지수' },
+                macd: { title: 'MACD', desc: '추세 전환' },
+                adx: { title: 'ADX', desc: '추세 강도' },
+                bollinger: { title: '볼린저밴드', desc: '변동성' },
+                volume: { title: '거래량', desc: '참여도' },
+                foreign: { title: '외인비중', desc: '외국인 동향' },
+                evidence: { title: '매집 증거', desc: '세력 매집' },
+                vwap: { title: 'VWAP', desc: '가중평균가 정렬' },
+                strength: { title: '매집 강도', desc: 'OBV/매물대' },
+                probability: { title: '세력 존재율', desc: '종합 확률' }
+            };
+            Object.entries(details).forEach(([k, v]) => {
+                if (k === 'patterns') return;
+                const card = document.createElement('div'); card.className = 'indicator-card';
+                const val = typeof v === 'object' && v !== null ? (v.description || JSON.stringify(v)) : v;
+                const t = map[k]?.title || k.toUpperCase(), d = map[k]?.desc || '';
+                card.innerHTML = `<div class="indicator-title">${t}</div><div class="indicator-value">${val}</div><div class="indicator-desc">${d}</div>`;
+                grid.appendChild(card);
+            });
+        }
+        function updateSupportResistance(s1, s2, r1, r2) {
+            const fmt = p => (p ? p.toLocaleString('ko-KR') + ' 원' : '--');
+            $('supportResistance').innerHTML = `
+                <h4>지지 & 저항 가격</h4>
+                <p><strong>1차 지지선:</strong> ${fmt(s1)}</p>
+                <p><strong>2차 지지선:</strong> ${fmt(s2)}</p>
+                <p><strong>1차 저항선:</strong> ${fmt(r1)}</p>
+                <p><strong>2차 저항선:</strong> ${fmt(r2)}</p>
+            `;
+        }
+        function updateBacktestResults(bt) {
+            $('totalReturnValue').textContent = `${bt.totalReturn > 0 ? '+' : ''}${bt.totalReturn.toFixed(1)}%`;
+            $('winRateValue').textContent = `${bt.winRate.toFixed(1)}%`;
+            $('avgHoldingValue').textContent = `${bt.avgHoldingDays.toFixed(1)}일`;
+            $('tradeCountValue').textContent = `${bt.totalTrades}회`;
+        }
+        function updatePatternAlerts(patterns) {
+            const div = $('patternAlerts');
+            if (patterns.length) {
+                div.innerHTML = `<h4>패턴 감지</h4>${patterns.map(p => `<p><strong>${p.type}</strong>: ${p.description} (점수: ${p.score})</p>`).join('')}`;
+            } else {
+                div.innerHTML = `<h4>패턴 감지</h4><p>현재 뚜렷한 패턴이 감지되지 않았습니다.</p>`;
+            }
+        }
+
+        /* ---------- 컨트롤/탭/리셋 ---------- */
+        function setActiveTab(tf) {
+            document.querySelectorAll('#chartTabs button').forEach(b => b.classList.remove('active'));
+            $(`tab-${tf}`).classList.add('active');
+            currentTF = tf; renderChart(currentTF);
+        }
+        function resetAppUI() {
+            originalData = []; if (chart) { chart.remove(); chart = null; }
+            $('controls').style.display = 'none';
+            $('analysisContainer').style.display = 'none';
+            $('uploadZone').style.display = 'flex';
+            $('chartTabs').style.display = 'none';
+            $('fileInput').value = '';
+
+            $('scoreCard').className = 'score-card';
+            $('scoreCard').innerHTML = `
+                <div class="score-value">--</div>
+                <div class="score-label">분석 대기</div>
+                <div class="score-mode">데이터를 업로드해주세요</div>
+                <div class="score-confidence"></div>
+            `;
+            $('commentary').innerHTML = `<h3>AI 분석 코멘터리</h3><p>데이터 업로드 후 상세한 분석 결과를 확인할 수 있습니다.</p>`;
+            $('volatilityValue').textContent = '--'; $('volatilityValue').className = 'risk-value';
+            $('maxDrawdownValue').textContent = '--'; $('maxDrawdownValue').className = 'risk-value';
+            $('sharpeValue').textContent = '--'; $('sharpeValue').className = 'risk-value';
+            $('positionSizeValue').textContent = '--'; $('positionSizeValue').className = 'risk-value';
+            $('indicatorsGrid').innerHTML = '';
+            $('supportResistance').innerHTML = `
+                <h4>지지 & 저항 가격</h4>
+                <p><strong>1차 지지선:</strong> --</p>
+                <p><strong>2차 지지선:</strong> --</p>
+                <p><strong>1차 저항선:</strong> --</p>
+                <p><strong>2차 저항선:</strong> --</p>`;
+            $('totalReturnValue').textContent = '--';
+            $('winRateValue').textContent = '--';
+            $('avgHoldingValue').textContent = '--';
+            $('tradeCountValue').textContent = '--';
+            $('patternAlerts').innerHTML = `<h4>패턴 감지</h4><p>차트 패턴 분석 결과가 표시됩니다.</p>`;
+            $('analysisMode').value = 'very-long';
+            $('riskTolerance').value = 'moderate';
+            
+            // 엘리엇 패널도 리셋
+            updateElliottPanel(null);
+            if (candleSeries) {
+                candleSeries.setMarkers([]);
+            }
+        }
+        function setupControls() {
+            $('analysisMode').addEventListener('change', analyzeData);
+            $('riskTolerance').addEventListener('change', analyzeData);
+            $('applyBtn').addEventListener('click', analyzeData);
+            $('resetBtn').addEventListener('click', resetAppUI);
+            $('tab-daily').addEventListener('click', () => setActiveTab('daily'));
+            $('tab-weekly').addEventListener('click', () => setActiveTab('weekly'));
+            $('tab-monthly').addEventListener('click', () => setActiveTab('monthly'));
+        }
+
+        /* ---------- 시작 ---------- */
+        function initialize() {
+            setupFileUpload();
+            setupControls();
+            window.addEventListener('resize', () => { if (chart) chart.applyOptions({ width: $('mainChart').clientWidth }); });
+        }
+        document.addEventListener('DOMContentLoaded', initialize);
+    </script>
+</body>
+</html>
