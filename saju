@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>전문가 사주명리 & 토정비결 통합 분석 시스템 v2.1 (Fix)</title>
+
+  <!-- React 17 (UMD) -->
+  <script crossorigin src="https://unpkg.com/react@17.0.2/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@17.0.2/umd/react-dom.production.min.js"></script>
+  <!-- Babel (JSX 트랜스파일) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+    *{font-family:'Noto Sans KR',sans-serif}
+    @keyframes slideIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    .slide-in{animation:slideIn .5s ease-out}
+    .gradient-bg{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh}
+    .glass-card{background:rgba(255,255,255,.95);backdrop-filter:blur(10px);border-radius:20px;box-shadow:0 8px 32px rgba(31,38,135,.15)}
+    .tooltip{position:relative;display:inline-block;cursor:help}
+    .tooltip .tooltip-text{visibility:hidden;width:260px;background:rgba(0,0,0,.9);color:#fff;border-radius:8px;padding:10px;position:absolute;z-index:1000;bottom:125%;left:50%;transform:translateX(-50%);opacity:0;transition:opacity .3s;font-size:13px;line-height:1.4}
+    .tooltip:hover .tooltip-text{visibility:visible;opacity:1}
+    .element-wood{color:#10b981}.element-fire{color:#ef4444}.element-earth{color:#f59e0b}.element-metal{color:#6b7280}.element-water{color:#3b82f6}
+    .tab-active{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff}
+    @media print{.no-print{display:none!important}.gradient-bg{background:#fff!important}.glass-card{box-shadow:none!important;border:1px solid #e5e7eb!important}}
+    .spinner{border:3px solid rgba(255,255,255,.3);border-top:3px solid #fff;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite}
+    @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+  </style>
+</head>
+<body class="gradient-bg">
+  <div id="root"></div>
+
+  <!-- App -->
+  <script type="text/babel" data-presets="env,react">
+    const App = () => {
+      const [activeTab,setActiveTab]=React.useState('input');
+      const [formData,setFormData]=React.useState({
+        year:1990,month:1,day:1,hour:12,minute:0,gender:'남',calendar:'solar'
+      });
+      const [result,setResult]=React.useState(null);
+      const [loading,setLoading]=React.useState(false);
+      const [error,setError]=React.useState(null);
+
+      // Chart refs
+      const chartRef = React.useRef(null);
+      const chartInstanceRef = React.useRef(null);
+
+      // ===== 상수/테이블 =====
+      const STEMS=["갑","을","병","정","무","기","경","신","임","계"];
+      const BRANCHES=["자","축","인","묘","진","사","오","미","신","유","술","해"];
+      const ELEMENTS=["목","화","토","금","수"];
+      const STEM_ELEMENTS={"갑":"목","을":"목","병":"화","정":"화","무":"토","기":"토","경":"금","신":"금","임":"수","계":"수"};
+      const BRANCH_ELEMENTS={"자":"수","축":"토","인":"목","묘":"목","진":"토","사":"화","오":"화","미":"토","신":"금","유":"금","술":"토","해":"수"};
+
+      // 지장간 (본/중/여)
+      const HIDDEN_STEMS={
+        "자":[{stem:"계",ratio:1.0,type:"본기"}],
+        "축":[{stem:"기",ratio:0.6,type:"본기"},{stem:"계",ratio:0.3,type:"중기"},{stem:"신",ratio:0.1,type:"여기"}],
+        "인":[{stem:"갑",ratio:0.6,type:"본기"},{stem:"병",ratio:0.3,type:"중기"},{stem:"무",ratio:0.1,type:"여기"}],
+        "묘":[{stem:"을",ratio:1.0,type:"본기"}],
+        "진":[{stem:"무",ratio:0.6,type:"본기"},{stem:"을",ratio:0.3,type:"중기"},{stem:"계",ratio:0.1,type:"여기"}],
+        "사":[{stem:"병",ratio:0.6,type:"본기"},{stem:"경",ratio:0.3,type:"중기"},{stem:"무",ratio:0.1,type:"여기"}],
+        "오":[{stem:"정",ratio:0.7,type:"본기"},{stem:"기",ratio:0.3,type:"중기"}],
+        "미":[{stem:"기",ratio:0.6,type:"본기"},{stem:"정",ratio:0.3,type:"중기"},{stem:"을",ratio:0.1,type:"여기"}],
+        "신":[{stem:"경",ratio:0.6,type:"본기"},{stem:"무",ratio:0.3,type:"중기"},{stem:"임",ratio:0.1,type:"여기"}],
+        "유":[{stem:"신",ratio:1.0,type:"본기"}],
+        "술":[{stem:"무",ratio:0.6,type:"본기"},{stem:"신",ratio:0.3,type:"중기"},{stem:"정",ratio:0.1,type:"여기"}],
+        "해":[{stem:"임",ratio:0.7,type:"본기"},{stem:"갑",ratio:0.3,type:"중기"}],
+      };
+
+      // 월 시작 절기(간이). 실제 서비스는 API의 절입 "시분초" 반영 권장
+      const MONTH_STARTS = [
+        {m:1, d:5,  branch:"축"}, // 小寒
+        {m:2, d:4,  branch:"인"}, // 立春
+        {m:3, d:5,  branch:"묘"}, // 驚蟄
+        {m:4, d:4,  branch:"진"}, // 淸明
+        {m:5, d:5,  branch:"사"}, // 立夏
+        {m:6, d:5,  branch:"오"}, // 芒種
+        {m:7, d:7,  branch:"미"}, // 小暑
+        {m:8, d:7,  branch:"신"}, // 立秋
+        {m:9, d:7,  branch:"유"}, // 白露
+        {m:10,d:8,  branch:"술"}, // 寒露
+        {m:11,d:7,  branch:"해"}, // 立冬
+        {m:12,d:7,  branch:"자"}, // 大雪
+      ];
+
+      // 십신 설명
+      const TEN_GODS_MAP={
+        "비견":{desc:"동료·경쟁자",tip:"나와 같은 오행(음양 동일)"},
+        "겁재":{desc:"라이벌·도전자",tip:"나와 같은 오행(음양 반대)"},
+        "식신":{desc:"표현·창작",tip:"내가 생하는 오행(음양 동일)"},
+        "상관":{desc:"비판·개혁",tip:"내가 생하는 오행(음양 반대)"},
+        "정재":{desc:"안정적 재물",tip:"내가 극하는 오행(음양 반대)"},
+        "편재":{desc:"변동적 재물",tip:"내가 극하는 오행(음양 동일)"},
+        "정관":{desc:"명예·직위",tip:"나를 극하는 오행(음양 반대)"},
+        "편관":{desc:"도전·변화",tip:"나를 극하는 오행(음양 동일)"},
+        "정인":{desc:"학문·지원",tip:"나를 생하는 오행(음양 반대)"},
+        "편인":{desc:"특수재능",tip:"나를 생하는 오행(음양 동일)"},
+      };
+
+      // 신살 (일지 기준 간이판정)
+      const SINSALS={
+        "천을귀인":{
+          check:(dayStem,branches)=>{
+            const nobles={
+              "갑":["축","미"],"을":["자","신"],"병":["해","유"],"정":["해","유"],
+              "무":["축","미"],"기":["자","신"],"경":["축","미"],"신":["인","오"],
+              "임":["묘","사"],"계":["묘","사"]
+            };
+            return branches.some(b=>nobles[dayStem]?.includes(b));
+          },
+          desc:"귀인의 도움",detail:"중요할 때 주변의 큰 도움을 받기 쉬운 운"
+        },
+        "문창귀인":{
+          check:(dayStem,branches)=>{
+            const star={"갑":"사","을":"오","병":"신","정":"유","무":"신","기":"유","경":"해","신":"자","임":"인","계":"묘"};
+            return branches.includes(star[dayStem]);
+          },
+          desc:"학문·예술",detail:"학습/표현 재능이 두드러짐"
+        },
+        "역마":{
+          check:(_dayStem,branches)=>{
+            // 일지(=result.saju.day.branch) 기준의 역마지 포함 여부
+            // 간지 별 역마: 申-寅, 亥-巳, 寅-申, 巳-亥, 子-午, 卯-酉, 午-子, 酉-卯, 丑-未, 辰-戌, 未-丑, 戌-辰
+            const horse = {"인":"신","신":"인","사":"해","해":"사","자":"오","오":"자","묘":"유","유":"묘","축":"미","미":"축","진":"술","술":"진"};
+            // branches[2]가 일지(아래에서 보장)
+            const dayBr = branches[2];
+            const need = horse[dayBr];
+            return need ? branches.includes(need) : false;
+          },
+          desc:"이동·변화",detail:"이동/출장/이사 등 변화가 많은 흐름"
+        },
+        "화개":{
+          check:(_dayStem,branches)=>{
+            const canopy={"인":"술","오":"술","술":"술","사":"축","유":"축","축":"축","신":"진","자":"진","진":"진","해":"미","묘":"미","미":"미"};
+            const dayBr=branches[2];
+            const need=canopy[dayBr];
+            return need? branches.includes(need):false;
+          },
+          desc:"예술·종교",detail:"예술성/정신성 강화, 고독감 동반 가능"
+        },
+        "도화살":{
+          check:(_dayStem,branches)=>{
+            const yearBr=branches[0];
+            const peach={"신":"유","자":"유","진":"유","인":"묘","오":"묘","술":"묘","해":"자","묘":"자","미":"자","사":"오","유":"오","축":"오"};
+            return branches.includes(peach[yearBr]);
+          },
+          desc:"매력·인기",detail:"대인관계/이성운 상승, 과도한 집착은 주의"
+        }
+      };
+
+      // ===== 음력 변환 (데모: 근사치) =====
+      class LunarConverter{
+        toSolar(y,m,d,isLeap=false){
+          const dayOffset=isLeap?30:0;
+          const totalDays=Math.round((m-1)*29.5)+d+dayOffset;
+          const solar=new Date(y,0,1); solar.setDate(solar.getDate()+totalDays+20);
+          return {year:solar.getFullYear(),month:solar.getMonth()+1,day:solar.getDate()};
+        }
+        toLunar(y,m,d){
+          const solar=new Date(y,m-1,d), start=new Date(y,0,1);
+          const doy=Math.floor((solar-start)/(24*3600*1000));
+          let lm=Math.floor((doy-20)/29.5)+1, ld=((doy-20)%29.5)+1;
+          if(lm<=0){lm=12; y--;}
+          return {year:y,month:Math.max(1,Math.min(12,lm)),day:Math.max(1,Math.min(30,Math.floor(ld)))};
+        }
+      }
+
+      // ===== 사주 계산 =====
+      class SajuCalculator{
+        constructor(birthDate,gender,isLunar=false){
+          this.gender=gender;
+          this.lunar=new LunarConverter();
+          this.solarDate=isLunar?(()=>{
+            const s=this.lunar.toSolar(birthDate.getFullYear(),birthDate.getMonth()+1,birthDate.getDate());
+            return new Date(s.year,s.month-1,s.day,birthDate.getHours(),birthDate.getMinutes());
+          })():birthDate;
+          this.pillars=this.calculatePillars();
+        }
+
+        // 절입 간이: 해당 달 시작 절기와 날짜 비교
+        getMonthBranchBySolarTerm(date){
+          const m=date.getMonth()+1, d=date.getDate();
+          const cur=MONTH_STARTS.find(t=>t.m===m);
+          if(!cur){return ["","인","묘","진","사","오","미","신","유","술","해","자","축"][m]||"인";}
+          if(d>=cur.d) return cur.branch;
+          const prevM=m===1?12:m-1;
+          const prev=MONTH_STARTS.find(t=>t.m===prevM);
+          return prev? prev.branch : "축";
+        }
+
+        // 60갑자(일주): 1984-02-02(갑자) 기준 + 야자시 보정(23시는 전일)
+        getDayGapja(date){
+          const base=new Date(1984,1,2,12,0,0);
+          const dateForDay=new Date(date.getTime());
+          if(date.getHours()===23){ // 야자시: 전일로 보정
+            dateForDay.setDate(dateForDay.getDate()-1);
+          }
+          const days=Math.floor((dateForDay-base)/(24*3600*1000));
+          const idx=((days%60)+60)%60;
+          return {stem:STEMS[idx%10],branch:BRANCHES[idx%12]};
+        }
+
+        // 시주: (일간idx*2 + 시지idx)%10, 시지 2시간 단위(23/0=子)
+        getHourPillar(dayStem,hour){
+          const hourBranches=["자","축","인","묘","진","사","오","미","신","유","술","해"];
+          const hourIdx = (hour===23||hour===0)?0: Math.floor((hour+1)/2)%12;
+          const dIdx=STEMS.indexOf(dayStem);
+          const hStemIdx=(dIdx*2 + hourIdx)%10;
+          return {stem:STEMS[hStemIdx],branch:hourBranches[hourIdx]};
+        }
+
+        calculatePillars(){
+          const dt=this.solarDate; const y=dt.getFullYear();
+          // 입춘 기준 년주(간이)
+          const lichun=new Date(y,1,4,0,0,0);
+          const adjYear = dt<lichun? y-1 : y;
+          const yStemIdx=((adjYear-4)%10+10)%10, yBranchIdx=((adjYear-4)%12+12)%12;
+
+          // 월주
+          const mBranch = this.getMonthBranchBySolarTerm(dt);
+          const mBranchIdx = BRANCHES.indexOf(mBranch);
+          const MONTH_START_STEM_BY_YEAR_STEM=[2,4,6,8,0,2,4,6,8,0]; // 丙戊庚壬甲
+          const mStartStemIdx = MONTH_START_STEM_BY_YEAR_STEM[yStemIdx];
+          const mStemIdx = (mStartStemIdx + ((mBranchIdx - BRANCHES.indexOf("인") + 12) % 12)) % 10;
+
+          // 일·시주
+          const day=this.getDayGapja(dt);
+          const hour=this.getHourPillar(day.stem, dt.getHours());
+
+          return {
+            year:{stem:STEMS[yStemIdx],branch:BRANCHES[yBranchIdx]},
+            month:{stem:STEMS[mStemIdx],branch:mBranch},
+            day, hour
+          };
+        }
+
+        // 오행 점수
+        calculateElementScores(){
+          const s={목:0,화:0,토:0,금:0,수:0};
+          Object.values(this.pillars).forEach(p=>{ s[STEM_ELEMENTS[p.stem]]+=2; });
+          Object.values(this.pillars).forEach(p=>{
+            s[BRANCH_ELEMENTS[p.branch]]+=1.5;
+            (HIDDEN_STEMS[p.branch]||[]).forEach(h=>{ s[STEM_ELEMENTS[h.stem]]+=h.ratio; });
+          });
+          s[BRANCH_ELEMENTS[this.pillars.month.branch]]+=2; // 월령 가중치
+          return s;
+        }
+
+        // 십신
+        getTenGod(dayStem,targetStem){
+          const dayEl=STEM_ELEMENTS[dayStem], tEl=STEM_ELEMENTS[targetStem];
+          const dayYang = STEMS.indexOf(dayStem)%2===0;
+          const tYang   = STEMS.indexOf(targetStem)%2===0;
+          const same= dayYang===tYang;
+          const prod={"목":"화","화":"토","토":"금","금":"수","수":"목"};
+          const ctrl={"목":"토","화":"금","토":"수","금":"목","수":"화"};
+          if(dayEl===tEl) return same?"비견":"겁재";
+          if(prod[dayEl]===tEl) return same?"식신":"상관";
+          if(ctrl[dayEl]===tEl) return same?"편재":"정재";
+          if(prod[tEl]===dayEl) return same?"편인":"정인";
+          if(ctrl[tEl]===dayEl) return same?"편관":"정관";
+          return "비견";
+        }
+
+        // 용신 (조후>억부>보정)
+        determineYongShin(){
+          const scores=this.calculateElementScores();
+          const dayEl=STEM_ELEMENTS[this.pillars.day.stem];
+          const mBr=this.pillars.month.branch;
+          let yong=null, reason=[];
+          const hot=["사","오","미"], cold=["해","자","축"];
+          if(hot.includes(mBr)){ yong="수"; reason.push("여름(혹서) → 냉각/수렴 필요"); }
+          else if(cold.includes(mBr)){ yong="화"; reason.push("겨울(혹한) → 온기/생기 필요"); }
+
+          const total=Object.values(scores).reduce((a,b)=>a+b,0);
+          const avg=total/5; const my=scores[dayEl]; const ratio=my/avg;
+          const isStrong=ratio>1.2;
+          const strengthDesc = ratio>1.5?"매우 강함": ratio>1.2?"강함": ratio>0.8?"보통": ratio>0.5?"약함":"매우 약함";
+
+          if(!yong){
+            const prod={"목":"화","화":"토","토":"금","금":"수","수":"목"};
+            const ctrl={"목":"토","화":"금","토":"수","금":"목","수":"화"};
+            const sortedAsc=Object.entries(scores).sort((a,b)=>a[1]-b[1]).map(x=>x[0]);
+            if(isStrong){
+              const leak=prod[dayEl];
+              yong = sortedAsc.includes(leak)? leak : sortedAsc[0];
+              reason.push("신강 → 기운을 빼거나(泄) 부족 오행 보강");
+            }else{
+              yong = dayEl; reason.push("신약 → 일간 보강");
+            }
+          }
+          const hee = Object.entries(scores).sort((a,b)=>a[1]-b[1]).map(x=>x[0]).filter(el=>el!==yong).slice(0,2);
+          return {element:yong, heeShin:hee, reason:reason.join(" / "), isStrong, strengthDesc, strengthRatio:ratio};
+        }
+      }
+
+      // ===== 토정비결(데모) =====
+      class TojeongCalculator{
+        constructor(ly,lm,ld){ this.year=ly; this.month=lm; this.day=ld; }
+        upper(){const s=this.year.toString().split('').reduce((a,b)=>a+Number(b),0); return ((s-1)%12)+1;}
+        middle(){return this.month;}
+        lower(){return ((this.day-1)%12)+1;}
+        num144(){return (this.upper()-1)*144 + (this.middle()-1)*12 + this.lower();}
+        getInterpretation(){
+          const n=this.num144(), lv=["대길","길","중길","소길","평"][n%5];
+          const text={"대길":"크게 길하여 추진/확장에 유리","길":"좋은 흐름, 계획대로 진행","중길":"평균 이상, 신중히 전진","소길":"작게 이득, 무리말 것","평":"안정 유지, 내실 다지기"}[lv];
+          return {level:lv, desc:text, guaNumber:n};
+        }
+        monthly(){
+          const base=this.num144(), lvArr=["대길","길","중길","소길","평"], themes=["새로운 시작","관계 발전","재물 증가","건강 주의","학업 성취","여행 기회","가족 화합","사업 확장","인연 만남","승진 기회","투자 신중","마무리 정리"];
+          const advice={"대길":"적극 도전","길":"계획대로 진행","중길":"신중 접근","소길":"작은 만족","평":"현상 유지"};
+          const arr=[]; for(let m=1;m<=12;m++){ const lv=lvArr[(base+m)%5]; arr.push({month:m, level:lv, theme:themes[m-1], advice:advice[lv]}); }
+          return arr;
+        }
+      }
+
+      // ===== 분석 실행 =====
+      const handleAnalysis=()=>{
+        try{
+          setLoading(true); setError(null);
+          const birth=new Date(formData.year,formData.month-1,formData.day,formData.hour,formData.minute);
+          if(isNaN(birth.getTime())) throw new Error("올바른 날짜·시간을 입력해주세요.");
+
+          const saju=new SajuCalculator(birth, formData.gender, formData.calendar==='lunar');
+          const elementScores=saju.calculateElementScores();
+          const yongShin=saju.determineYongShin();
+
+          const dayStem=saju.pillars.day.stem;
+          const tenGods={}; ["year","month","hour"].forEach(k=> tenGods[k]=saju.getTenGod(dayStem, saju.pillars[k].stem));
+          const branches=[saju.pillars.year.branch, saju.pillars.month.branch, saju.pillars.day.branch, saju.pillars.hour.branch];
+          const sinsals=[]; Object.entries(SINSALS).forEach(([name,obj])=>{
+            if(obj.check(dayStem, branches)) sinsals.push({name, desc:obj.desc, detail:obj.detail});
+          });
+
+          const lunar = formData.calendar==='lunar' ? {year:formData.year,month:formData.month,day:formData.day} : new LunarConverter().toLunar(formData.year,formData.month,formData.day);
+          const tj=new TojeongCalculator(lunar.year,lunar.month,lunar.day);
+
+          setResult({
+            saju:saju.pillars,
+            elementScores, yongShin, tenGods, sinsals,
+            tojeong:{upper:tj.upper(),middle:tj.middle(),lower:tj.lower(),interpretation:tj.getInterpretation(),monthly:tj.monthly()},
+            birthInfo:{solar: formData.calendar==='solar'? birth : saju.solarDate, lunar}
+          });
+          setActiveTab('basic');
+        }catch(e){ setError(e.message||String(e)); }
+        finally{ setLoading(false); }
+      };
+
+      // ===== 차트: result가 바뀔 때 마다 안전하게 생성/해제 =====
+      React.useEffect(()=>{
+        if(!result || !result.elementScores) return;
+        const ctx = chartRef.current?.getContext?.('2d');
+        if(!ctx) return;
+        if(chartInstanceRef.current){ chartInstanceRef.current.destroy(); chartInstanceRef.current=null; }
+        chartInstanceRef.current = new Chart(ctx,{
+          type:'radar',
+          data:{
+            labels:ELEMENTS,
+            datasets:[{
+              label:'오행 점수',
+              data:ELEMENTS.map(el=>result.elementScores[el]),
+              backgroundColor:'rgba(102,126,234,0.3)',
+              borderColor:'rgba(102,126,234,1)',
+              borderWidth:2
+            }]
+          },
+          options:{
+            responsive:true, maintainAspectRatio:false,
+            scales:{ r:{ beginAtZero:true,
+              ticks:{color:'#666'}, grid:{color:'#ddd'},
+              pointLabels:{color:'#333',font:{size:14,weight:'bold'}}
+            }},
+            plugins:{legend:{display:false}}
+          }
+        });
+        return ()=>{ if(chartInstanceRef.current){ chartInstanceRef.current.destroy(); chartInstanceRef.current=null; } };
+      },[result]);
+
+      // ===== 렌더링 유틸 =====
+      const getElementClass=(stem)=>{
+        const el=STEM_ELEMENTS[stem];
+        return {"목":"element-wood","화":"element-fire","토":"element-earth","금":"element-metal","수":"element-water"}[el]||"";
+      };
+
+      // ===== 입력 폼 =====
+      const renderInputForm=()=>(
+        <div className="glass-card p-8 max-w-2xl mx-auto slide-in">
+          <h2 className="text-3xl font-bold text-gray-800 mb-2 text-center">사주명리 & 토정비결 분석</h2>
+          <p className="text-gray-600 text-center mb-6">생년월일시를 입력하여 정확한 운세를 확인하세요</p>
+          {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
+          <div className="space-y-4">
+            <div className="flex justify-center gap-4 mb-4">
+              <label className="flex items-center"><input type="radio" name="calendar" value="solar" checked={formData.calendar==='solar'} onChange={e=>setFormData({...formData,calendar:e.target.value})} className="mr-2"/>양력</label>
+              <label className="flex items-center"><input type="radio" name="calendar" value="lunar" checked={formData.calendar==='lunar'} onChange={e=>setFormData({...formData,calendar:e.target.value})} className="mr-2"/>음력</label>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div><label className="block text-gray-700 text-sm font-bold mb-2">년도</label>
+                <input type="number" min="1900" max="2100" value={formData.year} onChange={e=>setFormData({...formData,year:parseInt(e.target.value)||1990})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-500"/></div>
+              <div><label className="block text-gray-700 text-sm font-bold mb-2">월</label>
+                <select value={formData.month} onChange={e=>setFormData({...formData,month:parseInt(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-500">
+                  {[...Array(12)].map((_,i)=><option key={i+1} value={i+1}>{i+1}월</option>)}
+                </select></div>
+              <div><label className="block text-gray-700 text-sm font-bold mb-2">일</label>
+                <select value={formData.day} onChange={e=>setFormData({...formData,day:parseInt(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-500">
+                  {[...Array(31)].map((_,i)=><option key={i+1} value={i+1}>{i+1}일</option>)}
+                </select></div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div><label className="block text-gray-700 text-sm font-bold mb-2">시간</label>
+                <select value={formData.hour} onChange={e=>setFormData({...formData,hour:parseInt(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-500">
+                  {[...Array(24)].map((_,i)=><option key={i} value={i}>{i}시</option>)}
+                </select></div>
+              <div><label className="block text-gray-700 text-sm font-bold mb-2">분</label>
+                <select value={formData.minute} onChange={e=>setFormData({...formData,minute:parseInt(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-500">
+                  {[0,15,30,45].map(m=><option key={m} value={m}>{m}분</option>)}
+                </select></div>
+              <div><label className="block text-gray-700 text-sm font-bold mb-2">성별</label>
+                <select value={formData.gender} onChange={e=>setFormData({...formData,gender:e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-500">
+                  <option value="남">남성</option><option value="여">여성</option>
+                </select></div>
+            </div>
+
+            <button onClick={handleAnalysis} disabled={loading} className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              {loading? (<div className="flex items-center justify-center"><div className="spinner mr-2"></div><span>분석 중...</span></div>):'🔮 운세 분석하기'}
+            </button>
+          </div>
+        </div>
+      );
+
+      // ===== 사주 분석 탭 =====
+      const renderBasicAnalysis=()=>{
+        if(!result) return null;
+        const labels=['연주 (조상/유년)','월주 (부모/청년)','일주 (본인)','시주 (자녀/노년)'];
+        return (
+          <div className="space-y-6 slide-in">
+            <div className="glass-card p-6">
+              <h3 className="text-2xl font-bold text-gray-800 mb-4">📿 사주팔자 분석</h3>
+              <div className="grid grid-cols-4 gap-4 mb-6">
+                {['year','month','day','hour'].map((pillar,idx)=>{
+                  const p=result.saju[pillar]; const isDay=pillar==='day';
+                  const tenGod = !isDay? result.tenGods[pillar]:null;
+                  const info = tenGod? TEN_GODS_MAP[tenGod]:null;
+                  return (
+                    <div key={pillar} className="text-center bg-gray-50 rounded-lg p-4">
+                      <div className="text-xs text-gray-600 mb-2">{labels[idx]}</div>
+                      <div className={`text-3xl font-bold mb-1 ${getElementClass(p.stem)} ${isDay?'ring-2 ring-purple-400 rounded-lg p-1':''}`}>{p.stem}</div>
+                      <div className={`text-3xl font-bold ${getElementClass(p.stem)}`}>{p.branch}</div>
+                      {tenGod && (
+                        <div className="mt-2">
+                          <span className="tooltip">
+                            <span className="text-sm text-blue-600 font-semibold">{tenGod}</span>
+                            <span className="tooltip-text"><strong>{tenGod}</strong><br/>{info.desc}<br/><small>{info.tip}</small></span>
+                          </span>
+                        </div>
+                      )}
+                      <div className="mt-2 text-xs text-gray-500">
+                        {(HIDDEN_STEMS[p.branch]||[]).map((h,i)=><span key={i} className="mx-1">{h.stem}<sub>{h.type}</sub></span>)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="bg-purple-50 rounded-lg p-4">
+                <h4 className="font-bold text-gray-800 mb-2">💫 나의 기본 성격</h4>
+                <p className="text-gray-700">
+                  일간 <span className="font-bold text-purple-600">{result.saju.day.stem}({STEM_ELEMENTS[result.saju.day.stem]})</span>은&nbsp;
+                  {({
+                    "갑":"씩씩하고 리더십이 강하며, 정의감이 투철합니다",
+                    "을":"유연하고 적응력이 뛰어나며, 섬세한 감성을 가졌습니다",
+                    "병":"밝고 활발하며, 열정적이고 표현력이 풍부합니다",
+                    "정":"따뜻하고 온화하며, 세심하고 배려심이 깊습니다",
+                    "무":"든든하고 포용력이 크며, 신뢰감을 줍니다",
+                    "기":"실용적이고 현실적이며, 꼼꼼하고 성실합니다",
+                    "경":"결단력이 있고 추진력이 강하며, 원칙을 중시합니다",
+                    "신":"예리하고 정확하며, 완벽주의 성향이 있습니다",
+                    "임":"지혜롭고 유연하며, 소통능력이 뛰어납니다",
+                    "계":"총명하고 기획력이 뛰어나며, 직관력이 강합니다"
+                  }[result.saju.day.stem]||"독특한 개성을 가졌습니다")}.</p>
+              </div>
+            </div>
+
+            <div className="glass-card p-6">
+              <h3 className="text-2xl font-bold text-gray-800 mb-4">⚖️ 오행 에너지 분석</h3>
+              <div className="mb-4" style={{height:'300px'}}>
+                <canvas ref={chartRef} id="elementChart"></canvas>
+              </div>
+
+              <div className="space-y-2 mb-4">
+                {ELEMENTS.map(el=>{
+                  const score=result.elementScores[el];
+                  const max=Math.max(...Object.values(result.elementScores));
+                  const pct=(score/max)*100;
+                  const color={"목":"bg-green-500","화":"bg-red-500","토":"bg-yellow-500","금":"bg-gray-500","수":"bg-blue-500"}[el];
+                  return (
+                    <div key={el} className="flex items-center">
+                      <div className="w-12 font-bold">{el}</div>
+                      <div className="flex-1 bg-gray-200 rounded-full h-6 relative">
+                        <div className={`${color} rounded-full h-6 transition-all duration-500`} style={{width:`${pct}%`}}></div>
+                        <span className="absolute right-2 top-0 h-6 flex items-center text-sm">{score.toFixed(1)}점</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-4">
+                <h4 className="font-bold text-gray-800 mb-2">🎯 용신 분석 (운을 돕는 핵심)</h4>
+                <div className="grid grid-cols-2 gap-4 mb-3">
+                  <div><span className="text-sm text-gray-600">일간 강약:</span><span className="ml-2 font-bold text-lg">{result.yongShin.strengthDesc}</span></div>
+                  <div><span className="text-sm text-gray-600">용신:</span><span className="ml-2 font-bold text-lg text-purple-600">{result.yongShin.element}</span></div>
+                </div>
+                <p className="text-gray-700 mb-3">{result.yongShin.reason}. 용신 '{result.yongShin.element}'을(를) 생활에 적극 반영하면 운이 상승합니다.</p>
+                <div className="bg-white rounded-lg p-3">
+                  <h5 className="font-semibold text-sm mb-2">💡 실생활 적용법</h5>
+                  {({
+                    "목":["🌳 녹색 사용","🌅 동쪽 기운","🌱 식물/산책","📚 학습·성장 루틴"],
+                    "화":["🔴 빨강/주황","☀️ 남쪽 기운","🏃 운동/발표","💡 창의적 표현"],
+                    "토":["🟡 노랑·베이지","🏠 중앙 안정","⚖️ 루틴·균형","🤝 중재/관리"],
+                    "금":["⚪ 흰색/메탈","🌆 서쪽 기운","📋 정리/기준","⏰ 규칙적 생활"],
+                    "수":["🔵 파랑/검정","🌊 북쪽 기운","💧 수분/보온","🧠 연구·기획"]
+                  }[result.yongShin.element]||["균형 유지"]).map((t,i)=><div key={i} className="text-sm text-gray-700">{t}</div>)}
+                  {result.yongShin.heeShin?.length>0 && (
+                    <div className="text-xs text-gray-500 mt-2">보조(희신): {result.yongShin.heeShin.join(" · ")}</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {result.sinsals.length>0 && (
+              <div className="glass-card p-6">
+                <h3 className="text-2xl font-bold text-gray-800 mb-4">🌟 특별한 신살</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {result.sinsals.map((s,i)=>(
+                    <div key={i} className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-4">
+                      <h4 className="font-bold text-orange-600 mb-1">{s.name}</h4>
+                      <p className="text-sm text-gray-600 mb-1">{s.desc}</p>
+                      <p className="text-xs text-gray-500">{s.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      };
+
+      // ===== 토정비결 탭 =====
+      const renderTojeongAnalysis=()=>{
+        if(!result||!result.tojeong) return null;
+        const tj=result.tojeong;
+        return (
+          <div className="space-y-6 slide-in">
+            <div className="glass-card p-6">
+              <h3 className="text-2xl font-bold text-gray-800 mb-4">🎴 토정비결 운세</h3>
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="text-center bg-gradient-to-br from-red-50 to-pink-50 rounded-lg p-4">
+                  <div className="text-sm text-gray-600 mb-1">상괘 (년)</div>
+                  <div className="text-4xl font-bold text-red-500">{tj.upper}</div>
+                  <div className="text-xs text-gray-500 mt-1">전체 운의 기조</div>
+                </div>
+                <div className="text-center bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4">
+                  <div className="text-sm text-gray-600 mb-1">중괘 (월)</div>
+                  <div className="text-4xl font-bold text-blue-500">{tj.middle}</div>
+                  <div className="text-xs text-gray-500 mt-1">현재 상황</div>
+                </div>
+                <div className="text-center bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-4">
+                  <div className="text-sm text-gray-600 mb-1">하괘 (일)</div>
+                  <div className="text-4xl font-bold text-green-500">{tj.lower}</div>
+                  <div className="text-xs text-gray-500 mt-1">구체적 실천</div>
+                </div>
+              </div>
+
+              <div className={`rounded-lg p-4 mb-6 ${
+                tj.interpretation.level==='대길'?'bg-green-50':
+                tj.interpretation.level==='길'   ?'bg-blue-50':
+                tj.interpretation.level==='중길' ?'bg-yellow-50':'bg-gray-50'}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-bold text-lg">종합 운세</h4>
+                  <span className={`px-3 py-1 rounded-full text-white font-bold ${
+                    tj.interpretation.level==='대길'?'bg-green-500':
+                    tj.interpretation.level==='길'  ?'bg-blue-500':
+                    tj.interpretation.level==='중길'?'bg-yellow-500':'bg-gray-500'}`}>
+                    {tj.interpretation.level}
+                  </span>
+                </div>
+                <p className="text-gray-700">{tj.interpretation.desc}</p>
+                <p className="text-gray-600 text-sm mt-1">※ 명리 연결: 용신/희신과 맞물리는 월에 집중하면 길운을 현실화하기 쉽습니다.</p>
+              </div>
+
+              <div>
+                <h4 className="font-bold text-lg mb-3">📅 2025년 월별 운세</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {tj.monthly.map(m=>(
+                    <div key={m.month} className="bg-white rounded-lg p-3 border border-gray-200">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold">{m.month}월</span>
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          m.level==='대길'?'bg-green-100 text-green-700':
+                          m.level==='길'  ?'bg-blue-100 text-blue-700':
+                          m.level==='중길'?'bg-yellow-100 text-yellow-700':'bg-gray-100 text-gray-700'}`}>{m.level}</span>
+                      </div>
+                      <div className="text-sm text-gray-600">{m.theme}</div>
+                      <div className="text-xs text-gray-500 mt-1">{m.advice}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      // ===== 조언 탭 =====
+      const renderAdvice=()=>{
+        if(!result) return null;
+        const weakest = Object.entries(result.elementScores).sort((a,b)=>a[1]-b[1])[0][0];
+        const dirMap={목:"동쪽",화:"남쪽",토:"중앙",금:"서쪽",수:"북쪽"};
+        return (
+          <div className="space-y-6 slide-in">
+            <div className="glass-card p-6">
+              <h3 className="text-2xl font-bold text-gray-800 mb-4">💡 맞춤형 인생 조언</h3>
+
+              <div className="mb-6">
+                <h4 className="font-bold text-lg mb-3 text-purple-600">성격과 재능</h4>
+                <div className="bg-purple-50 rounded-lg p-4">
+                  <p className="text-gray-700 mb-2">
+                    {({
+                      "목":"창의·리더십이 강해 시작과 성장에 유리. 교육·예술·환경 분야 추천.",
+                      "화":"열정·표현력이 풍부. 대중 소통/마케팅/스포츠에 강점.",
+                      "토":"안정·관리 역량 탁월. 경영·부동산·재무에 적합.",
+                      "금":"정확·원칙 중시. 법률·회계·공학 등 전문직 유리.",
+                      "수":"지혜·유연성 높고 변화 대응 우수. IT·연구·컨설팅에 강점."
+                    }[STEM_ELEMENTS[result.saju.day.stem]])}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <h4 className="font-bold text-lg mb-3 text-green-600">건강 관리</h4>
+                <div className="bg-green-50 rounded-lg p-4">
+                  <p className="text-gray-700">
+                    {({
+                      "목":"간/담·눈 관리. 스트레스 완화·수면·녹채소 섭취.",
+                      "화":"심혈·혈관 관리. 과로 금지·규칙 운동으로 순환 개선.",
+                      "토":"소화기 관리. 규칙 식사·가벼운 유산소로 체중 조절.",
+                      "금":"호흡기/피부 관리. 실내 공기·수분 보충 중요.",
+                      "수":"신장/방광 관리. 수분 섭취·보온에 신경 쓸 것."
+                    }[weakest])}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-bold text-lg mb-3 text-orange-600">2025년 을사년 특별 조언</h4>
+                <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-lg p-4">
+                  <div className="space-y-2 text-gray-700">
+                    <p>🐍 <strong>을사년</strong>: 신중한 판단과 전략이 빛나는 해.</p>
+                    <ul className="space-y-1 ml-4">
+                      <li>• 상반기: 준비·계획 | 하반기: 실행·수확</li>
+                      <li>• 핵심 키워드: 인내 · 지혜 · 변화</li>
+                      <li>• 행운의 방향: {dirMap[result.yongShin.element]}</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      // ===== Main Layout =====
+      return (
+        <div className="min-h-screen py-8 px-4">
+          <div className="max-w-6xl mx-auto">
+            <header className="text-center mb-8">
+              <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">🔮 사주명리 & 토정비결</h1>
+              <p className="text-white/80 text-lg">동양 철학이 밝혀주는 당신의 운명과 미래</p>
+            </header>
+
+            {result && (
+              <div className="flex flex-wrap justify-center gap-2 mb-8 no-print">
+                <button onClick={()=>setActiveTab('basic')} className={`px-4 py-2 rounded-lg font-semibold transition-all ${activeTab==='basic'?'tab-active':'bg-white/80 hover:bg-white/90'}`}>📿 사주분석</button>
+                <button onClick={()=>setActiveTab('tojeong')} className={`px-4 py-2 rounded-lg font-semibold transition-all ${activeTab==='tojeong'?'tab-active':'bg-white/80 hover:bg-white/90'}`}>🎴 토정비결</button>
+                <button onClick={()=>setActiveTab('advice')} className={`px-4 py-2 rounded-lg font-semibold transition-all ${activeTab==='advice'?'tab-active':'bg-white/80 hover:bg-white/90'}`}>💡 인생조언</button>
+              </div>
+            )}
+
+            <div className="min-h-[400px]">
+              {!result && renderInputForm()}
+              {result && activeTab==='basic' && renderBasicAnalysis()}
+              {result && activeTab==='tojeong' && renderTojeongAnalysis()}
+              {result && activeTab==='advice' && renderAdvice()}
+            </div>
+
+            {result && (
+              <div className="mt-8 text-center space-x-4 no-print">
+                <button onClick={()=>{setResult(null); setActiveTab('input');}} className="px-6 py-2 bg-white/80 text-gray-700 rounded-lg hover:bg-white/90 transition-all">↩️ 다시 분석</button>
+                <button onClick={()=>window.print()} className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all">📄 인쇄/저장</button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    // React 17 방식으로 마운트 (중요!)
+    ReactDOM.render(<App/>, document.getElementById('root'));
+  </script>
+</body>
+</html>
